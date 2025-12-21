@@ -18,3 +18,11 @@ It consists of the following modules:
 - [`executor`](...) runs and monitors various subprograms (scripts, GNU Radio flowcharts, [Linux Containers](...) etc.) and monitors them.
 - [`scheduler`](...) receives pass schedule requests from many sources (Web UI, API, SatNOGS, ...)
     - Requests can be auto-approved by default, evaluated by a script, or manually evaluated in the Web UI
+
+## Configuration
+
+- `tracker` needs to know which rotators are available on the system, maybe the radio tracking part as well.
+- `radio` needs to know what SDRs are available. Maybe it can auto detect, but some may have to be configured manually (e.g. VITA-49 hosts)
+- `scheduler` needs some kind of persistent storage for accepted schedule requests. And some kind of API keys / authorization.
+-
+- `executor` does not need configuration or persistent storage.
