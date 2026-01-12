@@ -1,0 +1,45 @@
+variables:
+  start: 2026-01-12 10:00:00 UTC
+  end: 2026-01-12 10:10:00 UTC
+  rotator: uhf1
+  radio: sdr1
+  tle: |
+    ISS (ZARYA)
+    1 25544U 98067A   26012.17690827  .00009276  00000-0  17471-3 0  9998
+    2 25544  51.6333 351.7881 0007723   8.9804 351.1321 15.49250518547578
+
+steps:
+  - time: T+10 seconds
+    tracker.initialize:
+      tle: $tle 
+      rotator: $rotator
+      radio: 
+        device: $radio
+        frequencies:
+          uplink: 135.925 MHz
+          downlink: 138.115 MHz
+      # (TODO: we could make function calls automatically match 
+      # arguments with variables ... )
+
+  - executor.run_shell:
+      cmd: python -c "print('hello world from pre_script')"
+      on_fail: continue # | abort
+
+  #- executor.run_container:
+  #    image: "rccn/groundstation"
+
+  - radio.start_streaming:
+      radio: $radio
+      bandwidth: 100 KHz
+      out: 
+        udp:
+          send: 127.0.0.1:817817
+          format: cs16
+      web_fft: true
+
+  - time: $end - 10 seconds
+    tracker.rotator.park:
+      rotator: $rotator
+
+  - executor.run_shell:
+      cmd: echo "hello from post_script"

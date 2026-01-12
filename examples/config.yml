@@ -1,0 +1,10 @@
+rotators:
+  uhf1:
+    type: hamlib
+    addr: "rotctl://..."
+
+radios:
+  sdr1:
+    type: soapysdr
+    addr: "soapysdr://..."
+    rigctl: true
