@@ -1,3 +1,4 @@
+# Hardware configuration
 rotators:
   uhf1:
     type: hamlib
@@ -8,3 +9,27 @@ radios:
     type: soapysdr
     addr: "soapysdr://..."
     rigctl: true
+
+# Web API configuration
+web:
+  bind: "0.0.0.0:8080"
+
+schedules:
+  base_folder: "./sat-o-mat-data/schedules"
+
+approval:
+  mode: auto  # auto | manual
+
+api_keys:
+  - key: "sk_test_operator"
+    name: "operator1"
+    permissions:
+      - submit_schedule
+      - list_schedules
+
+  - key: "sk_test_admin"
+    name: "admin"
+    permissions:
+      - submit_schedule
+      - list_schedules
+      - approve_schedule

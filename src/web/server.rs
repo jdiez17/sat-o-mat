@@ -1,0 +1,51 @@
+use axum::{routing::delete, routing::get, routing::post, Router};
+use std::sync::Arc;
+use tower_http::cors::{Any, CorsLayer};
+use tower_http::trace::TraceLayer;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
+
+use crate::scheduler::Storage;
+
+use super::api_doc::ApiDoc;
+use super::auth::AppState;
+use super::config::Config;
+use super::handlers;
+
+pub async fn run_server(config: Config) -> std::io::Result<()> {
+    let bind_addr = config.web.bind.clone();
+    let storage = Storage::new(config.schedules.base_folder.clone());
+
+    let state = AppState {
+        config: Arc::new(config),
+        storage: Arc::new(storage),
+    };
+
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
+    let app = Router::new()
+        // Schedule endpoints
+        .route("/api/schedules", post(handlers::submit_schedule))
+        .route("/api/schedules", get(handlers::list_schedules))
+        .route("/api/schedules/{id}", get(handlers::get_schedule))
+        .route("/api/schedules/{id}", delete(handlers::delete_schedule))
+        .route(
+            "/api/schedules/{id}/approve",
+            post(handlers::approve_schedule),
+        )
+        .route("/api/schedules/{id}/reject", post(handlers::reject_schedule))
+        // OpenAPI / Swagger
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-doc/openapi.json", ApiDoc::openapi()))
+        // Middleware
+        .layer(cors)
+        .layer(TraceLayer::new_for_http())
+        .with_state(state);
+
+    log::info!("Starting server on {}", bind_addr);
+
+    let listener = tokio::net::TcpListener::bind(&bind_addr).await?;
+    axum::serve(listener, app).await
+}

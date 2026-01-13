@@ -2,11 +2,12 @@ mod executor;
 mod radio;
 mod scheduler;
 mod tracker;
+mod web;
 
 use clap::{Parser, Subcommand};
 use scheduler::{Command, Schedule};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::{Arc, Mutex};
 
@@ -27,6 +28,12 @@ enum Commands {
     Validate { schedule: String },
     /// Execute a schedule file
     Run { schedule: String },
+    /// Start the web API server
+    Serve {
+        /// Path to configuration file
+        #[arg(short, long)]
+        config: String,
+    },
 }
 
 fn main() -> ExitCode {
@@ -37,6 +44,7 @@ fn main() -> ExitCode {
     match cli.command {
         Commands::Validate { schedule } => validate(&schedule),
         Commands::Run { schedule } => run(&schedule),
+        Commands::Serve { config } => serve(&config),
     }
 }
 
@@ -121,4 +129,24 @@ fn command_name(cmd: &Command) -> &'static str {
         Command::Radio(radio::Command::Run { .. }) => "radio.run",
         Command::Radio(radio::Command::Stop) => "radio.stop",
     }
+}
+
+fn serve(config_path: &str) -> ExitCode {
+    let config = match web::Config::from_file(config_path) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Error loading config: {}", e);
+            return ExitCode::FAILURE;
+        }
+    };
+
+    // Create tokio runtime and run the server
+    let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+
+    if let Err(e) = rt.block_on(web::run_server(config)) {
+        eprintln!("Server error: {}", e);
+        return ExitCode::FAILURE;
+    }
+
+    ExitCode::SUCCESS
 }
