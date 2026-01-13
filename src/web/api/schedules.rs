@@ -4,15 +4,16 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use serde::{Deserialize, Serialize};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Deserializer, Serialize};
 use utoipa::ToSchema;
 
 use crate::scheduler::approval::{evaluate_approval, ApprovalResult};
 use crate::scheduler::storage::{ScheduleEntry, ScheduleState, StorageError};
 use crate::scheduler::Schedule;
 
-use super::auth::{require_permission, AppState, AuthenticatedUser, PermissionError};
-use super::config::Permission;
+use crate::web::auth::{require_permission, AppState, AuthenticatedUser, PermissionError};
+use crate::web::config::Permission;
 
 // Unified API error type
 pub enum ApiError {
@@ -67,6 +68,29 @@ impl IntoResponse for ApiError {
 type ApiResult<T> = Result<T, ApiError>;
 
 #[derive(Debug, Serialize, ToSchema)]
+pub struct ErrorResponse {
+    pub error: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}
+
+impl ErrorResponse {
+    pub fn new(error: &str) -> Self {
+        ErrorResponse {
+            error: error.to_string(),
+            message: None,
+        }
+    }
+
+    pub fn with_message(error: &str, message: &str) -> Self {
+        ErrorResponse {
+            error: error.to_string(),
+            message: Some(message.to_string()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct ScheduleResponse {
     pub id: String,
     pub status: String,
@@ -90,42 +114,6 @@ impl From<ScheduleEntry> for ScheduleResponse {
 }
 
 #[derive(Debug, Serialize, ToSchema)]
-pub struct ScheduleDetailResponse {
-    #[serde(flatten)]
-    pub schedule: ScheduleResponse,
-    pub content: String,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct ErrorResponse {
-    pub error: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub message: Option<String>,
-}
-
-impl ErrorResponse {
-    pub fn new(error: &str) -> Self {
-        ErrorResponse {
-            error: error.to_string(),
-            message: None,
-        }
-    }
-
-    pub fn with_message(error: &str, message: &str) -> Self {
-        ErrorResponse {
-            error: error.to_string(),
-            message: Some(message.to_string()),
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct ListSchedulesQuery {
-    #[serde(default)]
-    pub state: Option<String>,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
 pub struct SubmitScheduleResponse {
     #[serde(flatten)]
     pub schedule: ScheduleResponse,
@@ -135,6 +123,7 @@ pub struct SubmitScheduleResponse {
 #[utoipa::path(
     post,
     path = "/api/schedules",
+    tag = "schedules",
     request_body(content = String, content_type = "application/yaml"),
     responses(
         (status = 201, description = "Schedule submitted successfully", body = SubmitScheduleResponse),
@@ -191,11 +180,86 @@ pub async fn submit_schedule(
     ))
 }
 
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ScheduleValidationResponse {
+    pub valid: bool,
+    pub errors: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end: Option<String>,
+    pub variables: Vec<ScheduleVariable>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ScheduleVariable {
+    pub name: String,
+    pub value: String,
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/schedules/validate",
+    tag = "schedules",
+    request_body(content = String, content_type = "application/yaml"),
+    responses(
+        (status = 200, description = "Validation result", body = ScheduleValidationResponse),
+        (status = 401, description = "Missing or invalid API key"),
+        (status = 403, description = "Insufficient permissions")
+    ),
+    security(("api_key" = []))
+)]
+pub async fn validate_schedule(
+    State(_state): State<AppState>,
+    user: AuthenticatedUser,
+    body: String,
+) -> ApiResult<impl IntoResponse> {
+    require_permission(&user, Permission::SubmitSchedule)?;
+
+    match Schedule::from_str(&body) {
+        Ok(schedule) => Ok(Json(ScheduleValidationResponse {
+            valid: true,
+            errors: Vec::new(),
+            start: Some(schedule.start.to_rfc3339()),
+            end: Some(schedule.end.to_rfc3339()),
+            variables: schedule
+                .variables
+                .into_iter()
+                .filter(|(name, _)| name != "start" && name != "end")
+                .filter_map(|(name, value)| {
+                    schedule_value_to_string(&value)
+                        .map(|val| ScheduleVariable { name, value: val })
+                })
+                .collect(),
+        })),
+        Err(err) => Ok(Json(ScheduleValidationResponse {
+            valid: false,
+            errors: vec![err.to_string()],
+            start: None,
+            end: None,
+            variables: Vec::new(),
+        })),
+    }
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct ListSchedulesQuery {
+    #[serde(default)]
+    pub state: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_option_datetime")]
+    pub start: Option<DateTime<Utc>>,
+    #[serde(default, deserialize_with = "deserialize_option_datetime")]
+    pub end: Option<DateTime<Utc>>,
+}
+
 #[utoipa::path(
     get,
     path = "/api/schedules",
+    tag = "schedules",
     params(
-        ("state" = Option<String>, Query, description = "Filter by state (active, awaiting_approval)")
+        ("state" = Option<String>, Query, description = "Filter by state (active, awaiting_approval)"),
+        ("start" = Option<String>, Query, description = "Only include schedules overlapping this start time (RFC3339)"),
+        ("end" = Option<String>, Query, description = "Only include schedules overlapping this end time (RFC3339)")
     ),
     responses(
         (status = 200, description = "List of schedules", body = Vec<ScheduleResponse>),
@@ -219,18 +283,41 @@ pub async fn list_schedules(
         _ => vec![ScheduleState::Active, ScheduleState::AwaitingApproval],
     };
 
-    let mut all_schedules: Vec<ScheduleResponse> = Vec::new();
-    for s in states_to_query {
-        let schedules = storage.get_schedules(s)?;
-        all_schedules.extend(schedules.into_iter().map(ScheduleResponse::from));
+    let start_filter = query.start;
+    let end_filter = query.end;
+
+    let mut filtered: Vec<ScheduleResponse> = Vec::new();
+    for state_entry in states_to_query {
+        let schedules = storage.get_schedules(state_entry)?;
+        for entry in schedules {
+            if let Some(ref start) = start_filter {
+                if entry.end <= *start {
+                    continue;
+                }
+            }
+            if let Some(ref end) = end_filter {
+                if entry.start >= *end {
+                    continue;
+                }
+            }
+            filtered.push(entry.into());
+        }
     }
 
-    Ok((StatusCode::OK, Json(all_schedules)))
+    Ok((StatusCode::OK, Json(filtered)))
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ScheduleDetailResponse {
+    pub schedule: ScheduleResponse,
+    pub content: String,
+    pub variables: Vec<ScheduleVariable>,
 }
 
 #[utoipa::path(
     get,
     path = "/api/schedules/{id}",
+    tag = "schedules",
     params(
         ("id" = String, Path, description = "Schedule ID")
     ),
@@ -254,13 +341,27 @@ pub async fn get_schedule(
     for s in [ScheduleState::Active, ScheduleState::AwaitingApproval] {
         match storage.get_schedule(s, &id) {
             Ok((entry, content)) => {
+                let variables = Schedule::from_str(&content)
+                    .map(|schedule| {
+                        schedule
+                            .variables
+                            .into_iter()
+                            .filter(|(name, _)| name != "start" && name != "end")
+                            .filter_map(|(name, value)| {
+                                schedule_value_to_string(&value)
+                                    .map(|val| ScheduleVariable { name, value: val })
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
                 return Ok((
                     StatusCode::OK,
                     Json(ScheduleDetailResponse {
                         schedule: entry.into(),
                         content,
+                        variables,
                     }),
-                ))
+                ));
             }
             Err(StorageError::NotFound(_)) => continue,
             Err(e) => return Err(e.into()),
@@ -273,6 +374,7 @@ pub async fn get_schedule(
 #[utoipa::path(
     delete,
     path = "/api/schedules/{id}",
+    tag = "schedules",
     params(
         ("id" = String, Path, description = "Schedule ID")
     ),
@@ -307,6 +409,7 @@ pub async fn delete_schedule(
 #[utoipa::path(
     post,
     path = "/api/schedules/{id}/approve",
+    tag = "schedules",
     params(
         ("id" = String, Path, description = "Schedule ID")
     ),
@@ -345,6 +448,7 @@ pub async fn approve_schedule(
 #[utoipa::path(
     post,
     path = "/api/schedules/{id}/reject",
+    tag = "schedules",
     params(
         ("id" = String, Path, description = "Schedule ID")
     ),
@@ -367,4 +471,29 @@ pub async fn reject_schedule(
     storage.delete_schedule(ScheduleState::AwaitingApproval, &id)?;
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+fn deserialize_option_datetime<'de, D>(deserializer: D) -> Result<Option<DateTime<Utc>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Option::<String>::deserialize(deserializer)?;
+    match value {
+        Some(raw) => DateTime::parse_from_rfc3339(&raw)
+            .map(|dt| Some(dt.with_timezone(&Utc)))
+            .map_err(serde::de::Error::custom),
+        None => Ok(None),
+    }
+}
+
+fn schedule_value_to_string(value: &serde_yaml::Value) -> Option<String> {
+    match value {
+        serde_yaml::Value::Null => Some(String::from("null")),
+        serde_yaml::Value::Bool(b) => Some(b.to_string()),
+        serde_yaml::Value::Number(n) => Some(n.to_string()),
+        serde_yaml::Value::String(s) => Some(s.clone()),
+        serde_yaml::Value::Sequence(seq) => serde_yaml::to_string(seq).ok(),
+        serde_yaml::Value::Mapping(map) => serde_yaml::to_string(map).ok(),
+        serde_yaml::Value::Tagged(tagged) => schedule_value_to_string(&tagged.value),
+    }
 }

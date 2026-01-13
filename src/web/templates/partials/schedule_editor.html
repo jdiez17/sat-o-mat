@@ -1,0 +1,80 @@
+<!-- Header -->
+<div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+    <h2 class="text-lg font-medium">New Schedule</h2>
+    <button onclick="closeNewScheduleModal()" class="p-2 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+    </button>
+</div>
+
+<!-- Content -->
+<div class="flex-1 overflow-auto p-4 space-y-5">
+    <div class="space-y-2">
+        <div class="flex items-center justify-between">
+            <label class="text-sm font-medium text-zinc-300">Schedule YAML</label>
+            <div class="flex items-center gap-2 text-xs text-zinc-500">
+                <button id="schedule-template-btn"
+                        class="px-3 py-1 font-medium text-xs border border-zinc-700 rounded hover:border-zinc-600 transition-colors">
+                    Load template
+                </button>
+            </div>
+        </div>
+        <div class="space-y-2">
+            <label class="text-xs uppercase tracking-wide text-zinc-500">Upload schedule file</label>
+            <input id="schedule-file-input"
+                   type="file"
+                   accept=".yaml,.yml"
+                   class="w-full text-sm text-zinc-300 bg-zinc-900 border border-zinc-800 rounded px-3 py-2 file:mr-4 file:py-2 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-cyan-600 file:text-white hover:file:bg-cyan-500">
+            <p class="text-xs text-zinc-500">Upload a YAML schedule that defines a <code class="font-mono">variables</code> section and a <code class="font-mono">steps</code> list.</p>
+        </div>
+    </div>
+
+    <div id="variables-card" class="bg-zinc-950 border border-zinc-800 rounded-lg p-4 space-y-4 hidden" data-expanded="true">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <button id="variables-toggle"
+                        class="text-lg text-zinc-400 hover:text-zinc-200 transition-colors"
+                        aria-label="Toggle variables"
+                        data-state="expanded">
+                    ▾
+                </button>
+                <div>
+                    <h3 id="variables-title" class="text-sm font-medium text-zinc-200">Variables</h3>
+                    <p id="variables-description" class="text-xs text-zinc-500">Start/end are datetime pickers; other entries are plain text values.</p>
+                </div>
+            </div>
+            <span id="variables-status" class="text-xs text-zinc-500">Awaiting file…</span>
+        </div>
+        <div id="variables-body" class="grid gap-4 sm:grid-cols-2">
+            <div class="text-sm text-zinc-500 col-span-full">Upload a schedule to edit variables.</div>
+        </div>
+    </div>
+
+    <div>
+        <div class="flex items-center justify-between mb-2">
+            <label class="text-sm font-medium text-zinc-300">Steps (YAML)</label>
+            <span class="text-xs text-zinc-500">Edit the execution steps in YAML format.</span>
+        </div>
+        <div class="bg-zinc-950 rounded border border-zinc-800 overflow-hidden">
+            <div id="steps-editor"></div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Footer -->
+<div class="flex items-center justify-between px-4 py-3 border-t border-zinc-800">
+    <div id="schedule-preview" class="text-sm text-zinc-400">No schedule loaded.</div>
+    <div class="flex items-center gap-2">
+        <button onclick="closeNewScheduleModal()"
+                class="px-4 py-1.5 text-sm text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors">
+            Cancel
+        </button>
+        <button id="submit-schedule-btn"
+                class="px-4 py-1.5 text-sm bg-cyan-600 hover:bg-cyan-500 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled>
+            Submit Schedule
+        </button>
+    </div>
+</div>

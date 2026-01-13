@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sat-O-Mat{% endblock %}</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        zinc: {
+                            950: '#09090b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+
+    <!-- CodeMirror -->
+    <script type="module">
+        import {EditorView, basicSetup} from 'https://esm.sh/codemirror@6.0.1';
+        import {yaml} from 'https://esm.sh/@codemirror/lang-yaml@6.1.1';
+        import {oneDark} from 'https://esm.sh/@codemirror/theme-one-dark@6.1.2';
+        window.CodeMirror = {EditorView, basicSetup, yaml, oneDark};
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+
+    <style>
+        /* Custom scrollbar for dark theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #18181b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3f3f46;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #52525b;
+        }
+
+        /* CodeMirror container styling */
+        .cm-editor {
+            height: 100%;
+            font-size: 14px;
+        }
+        .cm-scroller {
+            overflow: auto;
+        }
+
+        /* Disabled widget overlay */
+        .widget-disabled {
+            position: relative;
+        }
+        .widget-disabled::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(9, 9, 11, 0.7);
+            z-index: 10;
+            pointer-events: all;
+        }
+        .widget-disabled .widget-content {
+            filter: grayscale(0.5) opacity(0.5);
+            pointer-events: none;
+        }
+    </style>
+
+    {% block head %}{% endblock %}
+</head>
+<body class="bg-zinc-950 text-zinc-50 min-h-screen">
+    <!-- Header -->
+    <header class="border-b border-zinc-800 px-6 py-4">
+        <div class="flex items-center justify-between">
+            <h1 class="text-xl font-semibold tracking-tight">
+                <span class="text-cyan-400">SAT</span>-O-MAT
+            </h1>
+            <div class="flex items-center gap-4">
+                <!-- API Key input -->
+                <div class="flex items-center gap-2">
+                    <div id="auth-status" class="flex items-center gap-2">
+                        <!-- Filled by JS -->
+                    </div>
+                    <button id="auth-btn"
+                            onclick="Auth.showModal()"
+                            class="px-3 py-1.5 text-sm border border-zinc-700 hover:border-zinc-600 rounded transition-colors">
+                        API Key
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main content -->
+    <main class="p-6">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-zinc-800 px-6 py-3 text-sm text-zinc-500">
+        Sat-O-Mat v0.1.0
+    </footer>
+
+    <!-- API Key Modal -->
+    <div id="auth-modal" class="hidden fixed inset-0 z-50">
+        <div class="absolute inset-0 bg-black/60" onclick="Auth.hideModal()"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 bg-zinc-900 rounded-lg border border-zinc-800 p-6">
+            <h3 class="text-lg font-medium mb-4">API Key</h3>
+            <p class="text-sm text-zinc-400 mb-4">
+                Enter your API key to enable interactions with the dashboard.
+            </p>
+            <input type="password"
+                   id="api-key-input"
+                   placeholder="Enter API key..."
+                   class="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none mb-4">
+            <div class="flex items-center justify-between">
+                <button onclick="Auth.clear()"
+                        class="px-3 py-1.5 text-sm text-red-400 hover:text-red-300 transition-colors">
+                    Clear Key
+                </button>
+                <div class="flex gap-2">
+                    <button onclick="Auth.hideModal()"
+                            class="px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-300 transition-colors">
+                        Cancel
+                    </button>
+                    <button onclick="Auth.save()"
+                            class="px-4 py-1.5 text-sm bg-cyan-600 hover:bg-cyan-500 text-white rounded transition-colors">
+                        Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auth management script (must load before other scripts) -->
+    <script>
+        const Auth = {
+            storageKey: 'satomat_api_key',
+
+            getKey() {
+                return localStorage.getItem(this.storageKey) || '';
+            },
+
+            hasKey() {
+                return !!this.getKey();
+            },
+
+            save() {
+                const input = document.getElementById('api-key-input');
+                const key = input?.value?.trim();
+                if (key) {
+                    localStorage.setItem(this.storageKey, key);
+                    this.hideModal();
+                    this.updateUI();
+                    // Trigger refresh of data
+                    document.body.dispatchEvent(new CustomEvent('authChanged'));
+                }
+            },
+
+            clear() {
+                localStorage.removeItem(this.storageKey);
+                const input = document.getElementById('api-key-input');
+                if (input) input.value = '';
+                this.hideModal();
+                this.updateUI();
+                document.body.dispatchEvent(new CustomEvent('authChanged'));
+            },
+
+            showModal() {
+                document.getElementById('auth-modal')?.classList.remove('hidden');
+                const input = document.getElementById('api-key-input');
+                if (input) {
+                    input.value = this.getKey();
+                    input.focus();
+                }
+            },
+
+            hideModal() {
+                document.getElementById('auth-modal')?.classList.add('hidden');
+            },
+
+            updateUI() {
+                const statusEl = document.getElementById('auth-status');
+                const widgets = document.querySelectorAll('.widget');
+
+                if (this.hasKey()) {
+                    // Show authenticated status
+                    if (statusEl) {
+                        statusEl.innerHTML = `
+                            <span class="w-2 h-2 rounded-full bg-green-400"></span>
+                            <span class="text-sm text-zinc-400">Authenticated</span>
+                        `;
+                    }
+                    // Enable widgets
+                    widgets.forEach(w => w.classList.remove('widget-disabled'));
+                } else {
+                    // Show unauthenticated status
+                    if (statusEl) {
+                        statusEl.innerHTML = `
+                            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                            <span class="text-sm text-zinc-400">No API key</span>
+                        `;
+                    }
+                    // Disable widgets
+                    widgets.forEach(w => w.classList.add('widget-disabled'));
+                }
+            },
+
+            // Helper for making authenticated fetch requests
+            async fetch(url, options = {}) {
+                const key = this.getKey();
+                if (!key) {
+                    throw new Error('No API key configured');
+                }
+
+                const headers = {
+                    ...options.headers,
+                    'Authorization': `Bearer ${key}`,
+                };
+
+                return fetch(url, { ...options, headers });
+            },
+
+            init() {
+                this.updateUI();
+
+                // Handle Enter key in modal
+                document.getElementById('api-key-input')?.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') this.save();
+                    if (e.key === 'Escape') this.hideModal();
+                });
+            }
+        };
+
+        // Initialize auth on DOM ready
+        document.addEventListener('DOMContentLoaded', () => Auth.init());
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Sat-O-Mat{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+    <!-- Timeline Widget (spans 2 columns on large screens) -->
+    <div class="widget lg:col-span-2 bg-zinc-900 rounded-lg border border-zinc-800">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+            <h2 class="text-lg font-medium">Timeline</h2>
+            <div class="widget-content">
+                <button onclick="openNewScheduleModal()"
+                        class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium rounded transition-colors">
+                    + New
+                </button>
+            </div>
+        </div>
+        <div class="widget-content p-4">
+            <!-- Timeline - JS renders this -->
+            <div id="schedule-timeline">
+                {% include "partials/schedule_timeline.html" %}
+            </div>
+
+            <!-- Schedule List - rendered via JS -->
+            <div id="schedule-list" class="mt-6">
+                <div class="overflow-x-auto border border-zinc-800 rounded-lg">
+                    <div id="schedule-list-root" class="min-h-[120px]">
+                        <div class="text-center py-4 text-zinc-500">Connect your API key to load schedules.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Radio Widget -->
+    <div class="widget bg-zinc-900 rounded-lg border border-zinc-800">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+            <h2 class="text-lg font-medium">Radio</h2>
+            <span class="text-xs text-zinc-500 uppercase tracking-wide">Offline</span>
+        </div>
+        <div class="widget-content p-4">
+            {% include "partials/radio_widget.html" %}
+        </div>
+    </div>
+
+    <!-- Rotator Widget -->
+    <div class="widget bg-zinc-900 rounded-lg border border-zinc-800">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+            <h2 class="text-lg font-medium">Rotator</h2>
+            <span class="text-xs text-zinc-500 uppercase tracking-wide">Offline</span>
+        </div>
+        <div class="widget-content p-4">
+            {% include "partials/rotator_widget.html" %}
+        </div>
+    </div>
+</div>
+
+<!-- New Schedule Modal -->
+<div id="schedule-modal" class="hidden fixed inset-0 z-50">
+    <div class="absolute inset-0 bg-black/60" onclick="closeNewScheduleModal()"></div>
+    <div class="absolute inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[800px] md:max-h-[80vh] bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col">
+        {% include "partials/schedule_editor.html" %}
+    </div>
+</div>
+
+<!-- Schedule Detail Modal -->
+<div id="detail-modal" class="hidden fixed inset-0 z-50">
+    <div class="absolute inset-0 bg-black/60" onclick="closeDetailModal()"></div>
+    <div class="absolute inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[900px] md:max-h-[85vh] bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col">
+        <div id="detail-content"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/dashboard.js"></script>
+<script src="/static/js/timeline.js"></script>
+<script src="/static/js/editor.js"></script>
+{% endblock %}
