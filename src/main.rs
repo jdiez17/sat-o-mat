@@ -6,6 +6,7 @@ mod tracker;
 use clap::{Parser, Subcommand};
 use scheduler::{Command, Schedule};
 use std::fs;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::{Arc, Mutex};
 
@@ -29,6 +30,8 @@ enum Commands {
 }
 
 fn main() -> ExitCode {
+    env_logger::init();
+
     let cli = Cli::parse();
 
     match cli.command {
@@ -92,6 +95,9 @@ fn run(path: &str) -> ExitCode {
 
     let executor = Executor::new();
     let tracker = Arc::new(Mutex::new(Tracker::new()));
+
+    let _path = PathBuf::from("/tmp/foo");
+    //let schedules = get_schedules(path, ScheduleState::AwaitingApproval).unwrap();
 
     let runner = scheduler::runner::Runner {
         schedule,
