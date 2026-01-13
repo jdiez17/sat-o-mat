@@ -1,0 +1,9 @@
+<div class="flex items-center justify-between mb-4">
+    <h2 class="text-lg font-medium">Timeline</h2>
+    <button @click="$store.schedules.openEditor()"
+            class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium rounded transition-colors">
+        + New
+    </button>
+</div>
+
+{% include "partials/timeline_list.html" %}

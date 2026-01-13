@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Timeline - Sat-O-Mat{% endblock %}
+
+{% block body_class %}h-screen overflow-hidden flex flex-col{% endblock %}
+
+{% block header %}
+<header class="flex items-center justify-between px-4 py-2 border-b border-zinc-800 flex-shrink-0">
+    <div class="flex items-center gap-3">
+        <a href="/" class="text-zinc-400 hover:text-zinc-200 transition-colors" title="Back to Dashboard">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+        </a>
+        <span class="text-lg font-medium"><span class="text-cyan-400">SAT</span>-O-MAT</span>
+    </div>
+    <div class="flex items-center gap-3">
+        <template x-if="$store.auth.hasKey()">
+            <span class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-green-400"></span>
+                <span class="text-sm text-zinc-400">Authenticated</span>
+            </span>
+        </template>
+        <template x-if="!$store.auth.hasKey()">
+            <span class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                <span class="text-sm text-zinc-400">No API key</span>
+            </span>
+        </template>
+        <button @click="$store.auth.showModal()" class="px-3 py-1.5 text-sm border border-zinc-700 hover:border-zinc-600 rounded transition-colors">API Key</button>
+    </div>
+</header>
+{% endblock %}
+
+{% block main_class %}flex-1 overflow-auto p-4{% endblock %}
+
+{% block content %}
+{% include "partials/timeline_content.html" %}
+{% endblock %}
+
+{% block footer %}{% endblock %}
+
+{% block scripts %}{% endblock %}

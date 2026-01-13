@@ -3,7 +3,7 @@ use utoipa::{
     Modify, OpenApi,
 };
 
-use super::handlers::{
+use super::api::schedules::{
     ErrorResponse, ListSchedulesQuery, ScheduleDetailResponse, ScheduleResponse,
     SubmitScheduleResponse,
 };
@@ -11,12 +11,12 @@ use super::handlers::{
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        super::handlers::submit_schedule,
-        super::handlers::list_schedules,
-        super::handlers::get_schedule,
-        super::handlers::delete_schedule,
-        super::handlers::approve_schedule,
-        super::handlers::reject_schedule,
+        crate::web::api::schedules::submit_schedule,
+        crate::web::api::schedules::list_schedules,
+        crate::web::api::schedules::get_schedule,
+        crate::web::api::schedules::delete_schedule,
+        crate::web::api::schedules::approve_schedule,
+        crate::web::api::schedules::reject_schedule,
     ),
     components(
         schemas(

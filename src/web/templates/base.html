@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sat-O-Mat{% endblock %}</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        zinc: {
+                            950: '#09090b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- CodeMirror -->
+    <script type="module">
+        import {EditorView, basicSetup} from 'https://esm.sh/codemirror@6.0.1';
+        import {yaml} from 'https://esm.sh/@codemirror/lang-yaml@6.1.1';
+        import {oneDark} from 'https://esm.sh/@codemirror/theme-one-dark@6.1.2';
+        window.CodeMirror = {EditorView, basicSetup, yaml, oneDark};
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+
+    <style>
+        /* Hide elements until Alpine loads */
+        [x-cloak] { display: none !important; }
+
+        /* Custom scrollbar for dark theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #18181b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3f3f46;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #52525b;
+        }
+
+        /* CodeMirror container styling */
+        .cm-editor {
+            height: 100%;
+            font-size: 14px;
+        }
+        .cm-scroller {
+            overflow: auto;
+        }
+
+        /* Disabled widget overlay */
+        .widget-disabled {
+            position: relative;
+        }
+        .widget-disabled::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(9, 9, 11, 0.7);
+            z-index: 10;
+            pointer-events: all;
+        }
+        .widget-disabled .widget-content {
+            filter: grayscale(0.5) opacity(0.5);
+            pointer-events: none;
+        }
+
+        /* Timeline drag cursor */
+        .cursor-grabbing {
+            cursor: grabbing !important;
+        }
+
+        /* Hide scrollbar but keep scroll functionality */
+        .scrollbar-hidden::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+
+    {% block head %}{% endblock %}
+</head>
+<body x-data class="bg-zinc-950 text-zinc-50 {% block body_class %}min-h-screen{% endblock %}">
+    {% block header %}
+    <!-- Header -->
+    <header class="border-b border-zinc-800 px-6 py-4">
+        <div class="flex items-center justify-between">
+            <h1 class="text-xl font-semibold tracking-tight">
+                <span class="text-cyan-400">SAT</span>-O-MAT
+            </h1>
+            <div class="flex items-center gap-4">
+                <!-- API Key status -->
+                <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2">
+                        <template x-if="$store.auth.hasKey()">
+                            <span class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-green-400"></span>
+                                <span class="text-sm text-zinc-400">Authenticated</span>
+                            </span>
+                        </template>
+                        <template x-if="!$store.auth.hasKey()">
+                            <span class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                                <span class="text-sm text-zinc-400">No API key</span>
+                            </span>
+                        </template>
+                    </div>
+                    <button @click="$store.auth.showModal()"
+                            class="px-3 py-1.5 text-sm border border-zinc-700 hover:border-zinc-600 rounded transition-colors">
+                        API Key
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+    {% endblock %}
+
+    <!-- Main content -->
+    <main class="{% block main_class %}px-2 pt-2 pb-6{% endblock %}">
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block footer %}
+    <!-- Footer -->
+    <footer class="border-t border-zinc-800 px-6 py-3 text-sm text-zinc-500">
+        Sat-O-Mat v0.1.0
+    </footer>
+    {% endblock %}
+
+    {% include "partials/modals/api_key.html" %}
+    {% include "partials/modals/schedule_detail.html" %}
+    {% include "partials/modals/schedule_editor.html" %}
+
+    <!-- Alpine.js app -->
+    <script type="module" src="/static/js/alpine/app.js"></script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

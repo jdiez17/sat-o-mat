@@ -1,0 +1,27 @@
+<div class="flex items-center justify-between px-4 py-2 border-b border-zinc-800 flex-shrink-0">
+    <div class="flex items-center gap-2">
+        {% if widget_fullscreen_url != "" %}
+        <a href="{{ widget_fullscreen_url }}" title="{{ widget_fullscreen_title }}"
+           class="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+            </svg>
+        </a>
+        {% endif %}
+        {% if widget_collapsible %}
+        <button type="button" title="Collapse" @click="collapsed = !collapsed"
+                class="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" x-show="!collapsed" x-cloak>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 15l6-6 6 6"/>
+            </svg>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" x-show="collapsed" x-cloak>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9l-6 6-6-6"/>
+            </svg>
+        </button>
+        {% endif %}
+        <h2 class="text-lg font-medium">{{ widget_title }}</h2>
+    </div>
+    {% if widget_right != "" %}
+        {{ widget_right | safe }}
+    {% endif %}
+</div>

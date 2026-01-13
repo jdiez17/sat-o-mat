@@ -1,0 +1,123 @@
+<!-- Timeline Component -->
+<div x-data="timeline()" x-init="init()" class="relative">
+    <!-- Controls bar - responsive layout -->
+    <div class="flex flex-wrap items-center gap-2 mb-3">
+        <!-- Time range picker - hidden on very narrow widths -->
+        <div class="hidden sm:flex items-center gap-2 flex-1 min-w-0">
+            <input type="datetime-local"
+                   :value="startInputValue"
+                   @change="onStartInputChange($event)"
+                   class="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-sm text-zinc-300 focus:border-cyan-500 focus:outline-none min-w-0 flex-1 max-w-[180px]">
+            <span class="text-zinc-500 text-xs">to</span>
+            <input type="datetime-local"
+                   :value="endInputValue"
+                   @change="onEndInputChange($event)"
+                   class="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-sm text-zinc-300 focus:border-cyan-500 focus:outline-none min-w-0 flex-1 max-w-[180px]">
+        </div>
+
+        <!-- Compact controls - always visible -->
+        <div class="flex items-center gap-1 sm:gap-2 ml-auto">
+            <button @click="goToNow()"
+                    class="px-2 py-1 text-xs text-cyan-400 hover:text-cyan-300 hover:bg-zinc-800 rounded transition-colors whitespace-nowrap"
+                    title="Go to current time">
+                Now
+            </button>
+            <div class="flex items-center gap-1 border-l border-zinc-700 pl-2">
+                <button @click="zoomOut()"
+                        class="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 rounded transition-colors"
+                        title="Zoom out (show more time)">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                    </svg>
+                </button>
+                <span class="text-xs text-zinc-400 w-8 text-center" x-text="zoomLabel"></span>
+                <button @click="zoomIn()"
+                        class="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 rounded transition-colors"
+                        title="Zoom in (show less time)">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Legend - compact on narrow widths -->
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2 text-xs text-zinc-400">
+        <div class="flex items-center gap-1">
+            <span class="w-2.5 h-2.5 rounded bg-cyan-500"></span>
+            <span>Active</span>
+        </div>
+        <div class="flex items-center gap-1">
+            <span class="w-2.5 h-2.5 rounded bg-amber-500"></span>
+            <span>Pending</span>
+        </div>
+        <div class="hidden sm:flex items-center gap-1">
+            <span class="w-2.5 h-2.5 rounded bg-zinc-600"></span>
+            <span>Completed</span>
+        </div>
+        <div class="flex items-center gap-1 ml-auto">
+            <span class="w-2.5 h-0.5 bg-red-500"></span>
+            <span>Now</span>
+        </div>
+    </div>
+
+    <!-- Scrollable Timeline Container -->
+    <div x-ref="scrollContainer"
+         @scroll="onScroll()"
+         @pointerdown="onPointerDown($event)"
+         @pointermove="onPointerMove($event)"
+         @pointerup="onPointerUp($event)"
+         @pointercancel="onPointerUp($event)"
+         @pointerenter="onPointerEnter($event)"
+         @pointerleave="onPointerLeave()"
+         :class="{ 'cursor-grabbing': isDragging }"
+         class="overflow-x-auto scrollbar-hidden border border-zinc-800 rounded-lg bg-zinc-900/50 cursor-grab select-none"
+         style="scrollbar-width: none; -ms-overflow-style: none;"
+         onmousedown="return false;"
+         ondragstart="return false;">
+        <!-- Timeline canvas -->
+        <div x-ref="content" class="relative overflow-visible" style="height: 120px;">
+            <!-- Time markers -->
+            <template x-for="marker in markers" :key="marker.time">
+                <div class="absolute top-0 bottom-0 border-l"
+                     :class="marker.major ? 'border-zinc-600' : 'border-zinc-800'"
+                     :style="`left: ${marker.px}px`">
+                    <span class="absolute -top-0.5 left-1 text-xs whitespace-nowrap"
+                          :class="marker.major ? 'text-zinc-400' : 'text-zinc-600'"
+                          x-text="marker.label"></span>
+                </div>
+            </template>
+
+            <!-- Schedule blocks -->
+            <template x-for="schedule in $store.schedules.items" :key="schedule.id">
+                <div x-show="scheduleVisible(schedule)"
+                     @click="$store.schedules.openDetail(schedule.id)"
+                     :style="scheduleStyle(schedule)"
+                     :title="scheduleTitle(schedule)"
+                     :class="schedule.status === 'approved' ? 'bg-cyan-500' : 'bg-amber-500'"
+                     class="absolute top-8 bottom-4 rounded cursor-pointer transition-all hover:brightness-110 hover:z-20">
+                    <span x-show="scheduleWidth(schedule) > 60"
+                          x-text="schedule.id"
+                          class="absolute inset-0 flex items-center justify-center text-xs font-medium text-white truncate px-1"></span>
+                </div>
+            </template>
+
+            <!-- Time cursor with label -->
+            <div x-show="pointerInside && pointerContentX !== null"
+                 :style="`left: ${pointerContentX}px`"
+                 class="absolute top-0 bottom-0 w-px bg-cyan-400/70 pointer-events-none z-40">
+                <span x-text="hoverLabel"
+                      class="absolute bottom-1 left-1.5 text-xs text-cyan-300 bg-zinc-900/90 px-1.5 py-0.5 rounded whitespace-nowrap"></span>
+            </div>
+
+            <!-- Current time indicator -->
+            <div x-show="nowVisible"
+                 :style="`left: ${nowPx}px`"
+                 class="absolute top-0 bottom-0 w-0.5 bg-red-500 z-30 pointer-events-none">
+                <div class="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-red-500 rounded-full"></div>
+            </div>
+        </div>
+    </div>
+</div>
