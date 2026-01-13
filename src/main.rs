@@ -7,9 +7,13 @@ use clap::{Parser, Subcommand};
 use scheduler::{Command, Schedule};
 use std::fs;
 use std::process::ExitCode;
+use std::sync::{Arc, Mutex};
+
+use crate::executor::Executor;
+use crate::tracker::Tracker;
 
 #[derive(Parser)]
-#[command(name = "satomat")]
+#[command(name = "sat-o-mat")]
 #[command(about = "Satellite ground station control")]
 struct Cli {
     #[command(subcommand)]
@@ -86,42 +90,16 @@ fn run(path: &str) -> ExitCode {
     let start_time = chrono::Utc::now();
     println!("Starting schedule at {}", start_time);
 
-    for (i, step) in schedule.steps.iter().enumerate() {
-        // Handle timing
-        if let Some(ref time_expr) = step.time {
-            let target = time_expr.resolve(start_time);
-            let now = chrono::Utc::now();
-            if target > now {
-                let wait = (target - now).to_std().unwrap_or_default();
-                println!("  Waiting {:?} until {}", wait, target);
-                std::thread::sleep(wait);
-            }
-        }
+    let executor = Executor::new();
+    let tracker = Arc::new(Mutex::new(Tracker::new()));
 
-        println!("[Step {}] {}", i + 1, command_name(&step.command));
+    let runner = scheduler::runner::Runner {
+        schedule,
+        executor,
+        tracker,
+    };
 
-        // Execute command
-        match &step.command {
-            Command::Tracker(tracker::Command::Initialize { rotator, tle, .. }) => {
-                println!(
-                    "  -> tracker.initialize: rotator={}, tle={}...",
-                    rotator,
-                    &tle[..20.min(tle.len())]
-                );
-            }
-            Command::Tracker(tracker::Command::RotatorPark { rotator }) => {
-                println!("  -> tracker.rotator.park: rotator={}", rotator);
-            }
-            Command::Executor(executor::Command::RunShell { cmd, .. }) => {
-                println!("  -> executor.run_shell: cmd={}", cmd);
-            }
-            Command::Radio(radio::Command::Run {
-                radio, bandwidth, ..
-            }) => {
-                println!("  -> radio.run: radio={}, bandwidth={}", radio, bandwidth);
-            }
-        }
-    }
+    let _ = runner.run();
 
     println!("Schedule completed");
     ExitCode::SUCCESS

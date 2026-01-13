@@ -1,19 +1,19 @@
 #![allow(dead_code)]
 use serde::Deserialize;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct RadioConfig {
     pub device: String,
     pub frequencies: Frequencies,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct Frequencies {
     pub uplink: String,
     pub downlink: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(tag = "action", rename_all = "snake_case")]
 pub enum Command {
     Initialize {
@@ -24,4 +24,11 @@ pub enum Command {
     RotatorPark {
         rotator: String,
     },
+}
+
+pub struct Tracker {}
+impl Tracker {
+    pub fn new() -> Self {
+        Self {}
+    }
 }

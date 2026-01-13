@@ -24,7 +24,7 @@ pub struct Step {
     pub command: Command,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TimeExpr {
     Relative(Duration),
     Absolute(DateTime<Utc>),
@@ -39,7 +39,7 @@ impl TimeExpr {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Command {
     Tracker(tracker::Command),
     Executor(executor::Command),
@@ -194,5 +194,80 @@ fn simple_to_string(v: &serde_yaml::Value) -> Option<String> {
         serde_yaml::Value::Number(n) => Some(n.to_string()),
         serde_yaml::Value::Bool(b) => Some(b.to_string()),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_basic_schedule() {
+        let yaml = include_str!("../../examples/schedules/basic.yml");
+        let schedule = Schedule::from_str(yaml).expect("failed to parse basic schedule");
+
+        assert_eq!(schedule.steps.len(), 5);
+
+        // Step 0: tracker.initialize with relative time (T+10 seconds)
+        assert_eq!(
+            schedule.steps[0].time,
+            Some(TimeExpr::Relative(Duration::seconds(10)))
+        );
+        assert!(matches!(
+            &schedule.steps[0].command,
+            Command::Tracker(tracker::Command::Initialize { rotator, tle, .. })
+            if rotator == "uhf1" && tle.contains("ISS (ZARYA)")
+        ));
+
+        // Step 1: executor.run_shell (immediate)
+        assert_eq!(
+            schedule.steps[1].command,
+            Command::Executor(executor::Command::RunShell {
+                cmd: "python -c \"print('hello world from pre_script')\"".to_string(),
+                on_fail: executor::OnFail::Continue,
+            })
+        );
+
+        // Step 2: radio.run with variable resolution (immediate)
+        assert_eq!(
+            schedule.steps[2].command,
+            Command::Radio(radio::Command::Run {
+                radio: "sdr1".to_string(),
+                bandwidth: "100 KHz".to_string(),
+                out: Some(radio::Output {
+                    udp: Some(radio::UdpOutput {
+                        send: "127.0.0.1:817817".to_string(),
+                        format: "cs16".to_string(),
+                    })
+                }),
+                web_fft: true,
+            })
+        );
+
+        // Step 3: tracker.rotator_park with absolute time ($end - 10 seconds = 2026-01-12T10:09:50Z)
+        assert_eq!(
+            // This checks variable resolution and a dynamic time expression
+            schedule.steps[3].time,
+            Some(TimeExpr::Absolute(
+                DateTime::parse_from_rfc3339("2026-01-12T10:09:50Z")
+                    .unwrap()
+                    .with_timezone(&Utc)
+            ))
+        );
+        assert_eq!(
+            schedule.steps[3].command,
+            Command::Tracker(tracker::Command::RotatorPark {
+                rotator: "uhf1".to_string(),
+            })
+        );
+
+        // Step 4: executor.run_shell (immediate)
+        assert_eq!(
+            schedule.steps[4].command,
+            Command::Executor(executor::Command::RunShell {
+                cmd: "echo \"hello from post_script\"".to_string(),
+                on_fail: executor::OnFail::Abort,
+            })
+        );
     }
 }
