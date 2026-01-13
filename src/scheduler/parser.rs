@@ -9,10 +9,14 @@ pub enum ParseError {
     Yaml(#[from] serde_yaml::Error),
     #[error("step {0}: {1}")]
     Step(usize, String),
+    #[error("{0}")]
+    Validation(String),
 }
 
 #[derive(Debug, Clone)]
 pub struct Schedule {
+    pub start: DateTime<Utc>,
+    pub end: DateTime<Utc>,
     #[allow(dead_code)]
     pub variables: HashMap<String, serde_yaml::Value>,
     pub steps: Vec<Step>,
@@ -56,6 +60,13 @@ impl Schedule {
             .transpose()?
             .unwrap_or_default();
 
+        let start = parse_time_variable(&variables, "start")?;
+        let end = parse_time_variable(&variables, "end")?;
+
+        if end <= start {
+            return Err(ParseError::Validation("'end' must be after 'start'".into()));
+        }
+
         let steps = root
             .get("steps")
             .and_then(|v| v.as_sequence())
@@ -65,7 +76,12 @@ impl Schedule {
             .map(|(i, v)| parse_step(i, v, &variables))
             .collect::<Result<Vec<_>, _>>()?;
 
-        Ok(Schedule { variables, steps })
+        Ok(Schedule {
+            start,
+            end,
+            variables,
+            steps,
+        })
     }
 }
 
@@ -97,13 +113,9 @@ fn parse_step(
     let value = resolve_value(value, vars);
 
     let command = match module {
-        "tracker" => {
-            Command::Tracker(serde_yaml::from_value(value).map_err(|e| err(&e.to_string()))?)
-        }
-        "executor" => {
-            Command::Executor(serde_yaml::from_value(value).map_err(|e| err(&e.to_string()))?)
-        }
-        "radio" => Command::Radio(serde_yaml::from_value(value).map_err(|e| err(&e.to_string()))?),
+        "tracker" => Command::Tracker(serde_yaml::from_value(value)?),
+        "executor" => Command::Executor(serde_yaml::from_value(value)?),
+        "radio" => Command::Radio(serde_yaml::from_value(value)?),
         _ => return Err(err(&format!("unknown module: {}", module))),
     };
 
@@ -145,6 +157,20 @@ fn parse_time(s: String) -> Result<TimeExpr, String> {
     DateTime::parse_from_rfc3339(s)
         .map(|dt| TimeExpr::Absolute(dt.with_timezone(&Utc)))
         .map_err(|e| e.to_string())
+}
+
+fn parse_time_variable(
+    variables: &HashMap<String, serde_yaml::Value>,
+    name: &str,
+) -> Result<DateTime<Utc>, ParseError> {
+    let str_val = variables
+        .get(name)
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ParseError::Validation(format!("missing mandatory variable '{}'", name)))?;
+
+    DateTime::parse_from_rfc3339(str_val)
+        .map(|dt| dt.with_timezone(&Utc))
+        .map_err(|e| ParseError::Validation(format!("invalid '{}' datetime: {}", name, e)))
 }
 
 fn parse_duration(s: &str) -> Result<Duration, String> {
@@ -269,5 +295,52 @@ mod tests {
                 on_fail: executor::OnFail::Abort,
             })
         );
+    }
+
+    #[test]
+    fn test_missing_start_variable() {
+        let yaml = "variables: {end: '2026-01-12T10:10:00Z'}\nsteps: []";
+        assert!(matches!(
+            Schedule::from_str(yaml),
+            Err(ParseError::Validation(msg)) if msg.contains("start")
+        ));
+    }
+
+    #[test]
+    fn test_missing_end_variable() {
+        let yaml = "variables: {start: '2026-01-12T10:00:00Z'}\nsteps: []";
+        assert!(matches!(
+            Schedule::from_str(yaml),
+            Err(ParseError::Validation(msg)) if msg.contains("end")
+        ));
+    }
+
+    #[test]
+    fn test_invalid_start_datetime() {
+        let yaml = "variables: {start: 'not-a-date', end: '2026-01-12T10:10:00Z'}\nsteps: []";
+        assert!(matches!(
+            Schedule::from_str(yaml),
+            Err(ParseError::Validation(msg)) if msg.contains("start")
+        ));
+    }
+
+    #[test]
+    fn test_end_before_start() {
+        let yaml =
+            "variables: {start: '2026-01-12T10:10:00Z', end: '2026-01-12T10:00:00Z'}\nsteps: []";
+        assert!(matches!(
+            Schedule::from_str(yaml),
+            Err(ParseError::Validation(msg)) if msg.contains("must be after")
+        ));
+    }
+
+    #[test]
+    fn test_end_equal_to_start() {
+        let yaml =
+            "variables: {start: '2026-01-12T10:00:00Z', end: '2026-01-12T10:00:00Z'}\nsteps: []";
+        assert!(matches!(
+            Schedule::from_str(yaml),
+            Err(ParseError::Validation(msg)) if msg.contains("must be after")
+        ));
     }
 }
