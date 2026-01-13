@@ -1,6 +1,6 @@
 variables:
-  start: 2026-01-12 10:00:00 UTC
-  end: 2026-01-12 10:10:00 UTC
+  start: 2026-01-12T10:00:00Z
+  end: 2026-01-12T10:10:00Z
   rotator: uhf1
   radio: sdr1
   tle: |
@@ -10,36 +10,36 @@ variables:
 
 steps:
   - time: T+10 seconds
-    tracker.initialize:
-      tle: $tle 
+    tracker:
+      action: initialize
+      tle: $tle
       rotator: $rotator
-      radio: 
+      radio:
         device: $radio
         frequencies:
           uplink: 135.925 MHz
           downlink: 138.115 MHz
-      # (TODO: we could make function calls automatically match 
-      # arguments with variables ... )
 
-  - executor.run_shell:
+  - executor:
+      action: run_shell
       cmd: python -c "print('hello world from pre_script')"
-      on_fail: continue # | abort
+      on_fail: continue
 
-  #- executor.run_container:
-  #    image: "rccn/groundstation"
-
-  - radio.start_streaming:
+  - radio:
+      action: run
       radio: $radio
       bandwidth: 100 KHz
-      out: 
+      out:
         udp:
           send: 127.0.0.1:817817
           format: cs16
       web_fft: true
 
   - time: $end - 10 seconds
-    tracker.rotator.park:
+    tracker:
+      action: rotator_park
       rotator: $rotator
 
-  - executor.run_shell:
+  - executor:
+      action: run_shell
       cmd: echo "hello from post_script"
