@@ -112,6 +112,19 @@ const Timeline = {
         });
     },
 
+    reflow() {
+        if (!this.elements.scrollContainer || !this.elements.content || !this.viewStart) {
+            return;
+        }
+        this.updateViewportMetrics();
+        this.anchorTime = new Date(this.viewStart.getTime() - this.initialScrollLeft * this.msPerPixel);
+        this.setScrollLeft(this.initialScrollLeft, true);
+        this.updateInputs();
+        this.render();
+        this.fetchSchedulesForView(true);
+        this.notifyViewChange();
+    },
+
     onPointerDown(event) {
         if (event.button !== 0 && event.pointerType === 'mouse') {
             return;

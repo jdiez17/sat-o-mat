@@ -3,29 +3,29 @@
 {% block title %}Dashboard - Sat-O-Mat{% endblock %}
 
 {% block content %}
-<div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-    <!-- Timeline Widget (spans 2 columns on large screens) -->
-    <div class="widget lg:col-span-2 bg-zinc-900 rounded-lg border border-zinc-800">
-        <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
-            <h2 class="text-lg font-medium">Timeline</h2>
-            <div class="widget-content">
+<div class="grid-stack">
+    <!-- Timeline Widget -->
+    <div class="grid-stack-item" gs-x="0" gs-y="0" gs-w="12" gs-h="4" gs-min-w="6" gs-min-h="3" gs-id="timeline">
+        <div class="grid-stack-item-content widget bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col h-full overflow-hidden">
+            <div class="grid-drag-handle flex items-center justify-between px-4 py-3 border-b border-zinc-800 cursor-move flex-shrink-0">
+                <h2 class="text-lg font-medium">Timeline</h2>
                 <button onclick="openNewScheduleModal()"
                         class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium rounded transition-colors">
                     + New
                 </button>
             </div>
-        </div>
-        <div class="widget-content p-4">
-            <!-- Timeline - JS renders this -->
-            <div id="schedule-timeline">
-                {% include "partials/schedule_timeline.html" %}
-            </div>
+            <div class="widget-content p-4 flex-1 overflow-auto">
+                <!-- Timeline - JS renders this -->
+                <div id="schedule-timeline">
+                    {% include "partials/schedule_timeline.html" %}
+                </div>
 
-            <!-- Schedule List - rendered via JS -->
-            <div id="schedule-list" class="mt-6">
-                <div class="overflow-x-auto border border-zinc-800 rounded-lg">
-                    <div id="schedule-list-root" class="min-h-[120px]">
-                        <div class="text-center py-4 text-zinc-500">Connect your API key to load schedules.</div>
+                <!-- Schedule List - rendered via JS -->
+                <div id="schedule-list" class="mt-6">
+                    <div class="overflow-x-auto border border-zinc-800 rounded-lg">
+                        <div id="schedule-list-root" class="min-h-[120px]">
+                            <div class="text-center py-4 text-zinc-500">Connect your API key to load schedules.</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -33,24 +33,28 @@
     </div>
 
     <!-- Radio Widget -->
-    <div class="widget bg-zinc-900 rounded-lg border border-zinc-800">
-        <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
-            <h2 class="text-lg font-medium">Radio</h2>
-            <span class="text-xs text-zinc-500 uppercase tracking-wide">Offline</span>
-        </div>
-        <div class="widget-content p-4">
-            {% include "partials/radio_widget.html" %}
+    <div class="grid-stack-item" gs-x="0" gs-y="4" gs-w="12" gs-h="3" gs-min-w="4" gs-min-h="2" gs-id="radio">
+        <div class="grid-stack-item-content widget bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col h-full overflow-hidden">
+            <div class="grid-drag-handle flex items-center justify-between px-4 py-3 border-b border-zinc-800 cursor-move flex-shrink-0">
+                <h2 class="text-lg font-medium">Radio</h2>
+                <span class="text-xs text-zinc-500 uppercase tracking-wide">Offline</span>
+            </div>
+            <div class="widget-content p-4 flex-1 overflow-auto">
+                {% include "partials/radio_widget.html" %}
+            </div>
         </div>
     </div>
 
     <!-- Rotator Widget -->
-    <div class="widget bg-zinc-900 rounded-lg border border-zinc-800">
-        <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
-            <h2 class="text-lg font-medium">Rotator</h2>
-            <span class="text-xs text-zinc-500 uppercase tracking-wide">Offline</span>
-        </div>
-        <div class="widget-content p-4">
-            {% include "partials/rotator_widget.html" %}
+    <div class="grid-stack-item" gs-x="8" gs-y="7" gs-w="4" gs-h="3" gs-min-w="3" gs-min-h="2" gs-id="rotator">
+        <div class="grid-stack-item-content widget bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col h-full overflow-hidden">
+            <div class="grid-drag-handle flex items-center justify-between px-4 py-3 border-b border-zinc-800 cursor-move flex-shrink-0">
+                <h2 class="text-lg font-medium">Rotator</h2>
+                <span class="text-xs text-zinc-500 uppercase tracking-wide">Offline</span>
+            </div>
+            <div class="widget-content p-4 flex-1 overflow-auto">
+                {% include "partials/rotator_widget.html" %}
+            </div>
         </div>
     </div>
 </div>
@@ -73,7 +77,54 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/gridstack@9/dist/gridstack-all.min.js"></script>
 <script src="/static/js/dashboard.js"></script>
 <script src="/static/js/timeline.js"></script>
 <script src="/static/js/editor.js"></script>
+<script>
+    const WidgetGrid = {
+        grid: null,
+
+        init() {
+            // Clear any old saved layouts
+            localStorage.removeItem('satomat_widget_layout');
+            localStorage.removeItem('satomat_widget_layout_v2');
+
+            this.grid = GridStack.init({
+                cellHeight: 120,
+                margin: 0,
+                float: false,
+                draggable: {
+                    handle: '.grid-drag-handle',
+                },
+                resizable: {
+                    handles: 'all'
+                },
+            });
+
+            // Listen for resize events to update widgets
+            this.grid.on('resizestop', (event, el) => {
+                this.onWidgetResized(el);
+            });
+
+            // Initial reflow for Timeline
+            setTimeout(() => {
+                if (window.Timeline && typeof window.Timeline.reflow === 'function') {
+                    window.Timeline.reflow();
+                }
+            }, 100);
+        },
+
+        onWidgetResized(el) {
+            if (el.querySelector('#timeline-scroll-container')) {
+                if (window.Timeline && typeof window.Timeline.reflow === 'function') {
+                    window.Timeline.reflow();
+                }
+            }
+        },
+    };
+
+    document.addEventListener('DOMContentLoaded', () => WidgetGrid.init());
+    window.WidgetGrid = WidgetGrid;
+</script>
 {% endblock %}
