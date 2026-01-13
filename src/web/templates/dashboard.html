@@ -8,26 +8,22 @@
     <div class="grid-stack-item" gs-x="0" gs-y="0" gs-w="12" gs-h="4" gs-min-w="6" gs-min-h="3" gs-id="timeline">
         <div class="grid-stack-item-content widget bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col h-full overflow-hidden">
             <div class="grid-drag-handle flex items-center justify-between px-4 py-3 border-b border-zinc-800 cursor-move flex-shrink-0">
-                <h2 class="text-lg font-medium">Timeline</h2>
-                <button onclick="openNewScheduleModal()"
+                <div class="flex items-center gap-2">
+                    <a href="/timeline" title="Full screen"
+                       class="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                        </svg>
+                    </a>
+                    <h2 class="text-lg font-medium">Timeline</h2>
+                </div>
+                <button @click="$store.schedules.openEditor()"
                         class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium rounded transition-colors">
                     + New
                 </button>
             </div>
             <div class="widget-content p-4 flex-1 overflow-auto">
-                <!-- Timeline - JS renders this -->
-                <div id="schedule-timeline">
-                    {% include "partials/schedule_timeline.html" %}
-                </div>
-
-                <!-- Schedule List - rendered via JS -->
-                <div id="schedule-list" class="mt-6">
-                    <div class="overflow-x-auto border border-zinc-800 rounded-lg">
-                        <div id="schedule-list-root" class="min-h-[120px]">
-                            <div class="text-center py-4 text-zinc-500">Connect your API key to load schedules.</div>
-                        </div>
-                    </div>
-                </div>
+                {% include "partials/timeline_list.html" %}
             </div>
         </div>
     </div>
@@ -58,29 +54,10 @@
         </div>
     </div>
 </div>
-
-<!-- New Schedule Modal -->
-<div id="schedule-modal" class="hidden fixed inset-0 z-50">
-    <div class="absolute inset-0 bg-black/60" onclick="closeNewScheduleModal()"></div>
-    <div class="absolute inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[800px] md:max-h-[80vh] bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col">
-        {% include "partials/schedule_editor.html" %}
-    </div>
-</div>
-
-<!-- Schedule Detail Modal -->
-<div id="detail-modal" class="hidden fixed inset-0 z-50">
-    <div class="absolute inset-0 bg-black/60" onclick="closeDetailModal()"></div>
-    <div class="absolute inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[900px] md:max-h-[85vh] bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col">
-        <div id="detail-content"></div>
-    </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/gridstack@9/dist/gridstack-all.min.js"></script>
-<script src="/static/js/dashboard.js"></script>
-<script src="/static/js/timeline.js"></script>
-<script src="/static/js/editor.js"></script>
 <script>
     const WidgetGrid = {
         grid: null,
@@ -106,21 +83,23 @@
             this.grid.on('resizestop', (event, el) => {
                 this.onWidgetResized(el);
             });
-
-            // Initial reflow for Timeline
-            setTimeout(() => {
-                if (window.Timeline && typeof window.Timeline.reflow === 'function') {
-                    window.Timeline.reflow();
-                }
-            }, 100);
         },
 
         onWidgetResized(el) {
-            if (el.querySelector('#timeline-scroll-container')) {
-                if (window.Timeline && typeof window.Timeline.reflow === 'function') {
-                    window.Timeline.reflow();
+            // Find timeline component and trigger reflow
+            const timelineEl = el.querySelector('[x-data*="timeline"]');
+            if (timelineEl && window.Alpine) {
+                // Alpine 3 API: use Alpine.$data() to access component data
+                const data = Alpine.$data(timelineEl);
+                if (data && data.reflow) {
+                    data.reflow();
                 }
             }
+        },
+
+        resetLayout() {
+            // Reset to default layout
+            location.reload();
         },
     };
 

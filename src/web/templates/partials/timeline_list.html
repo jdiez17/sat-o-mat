@@ -1,0 +1,87 @@
+<div id="schedule-timeline">
+    {% include "partials/schedule_timeline.html" %}
+</div>
+
+<!-- Schedule List Table -->
+<div class="mt-6">
+    <div class="overflow-x-auto"> <!--" border border-zinc-800 rounded-lg"> -->
+        <div>
+            <!-- No API key state -->
+            <template x-if="!$store.auth.hasKey()">
+                <div class="text-center py-4 text-zinc-500">Connect your API key to load schedules.</div>
+            </template>
+
+            <!-- No view range state -->
+            <template x-if="$store.auth.hasKey() && !$store.schedules.viewRange.start">
+                <div class="text-center py-4 text-zinc-500">Adjust the timeline to choose a time range.</div>
+            </template>
+
+            <!-- Loading state -->
+            <template x-if="$store.auth.hasKey() && $store.schedules.viewRange.start && $store.schedules.loading">
+                <div class="text-center py-4 text-zinc-500">Loading schedules...</div>
+            </template>
+
+            <!-- Error state -->
+            <template x-if="$store.auth.hasKey() && $store.schedules.error && !$store.schedules.loading">
+                <div class="text-center py-4 text-red-400" x-text="$store.schedules.error"></div>
+            </template>
+
+            <!-- Empty state -->
+            <template x-if="$store.auth.hasKey() && $store.schedules.viewRange.start && !$store.schedules.loading && !$store.schedules.error && $store.schedules.visibleItems().length === 0">
+                <div class="text-center py-8 text-zinc-500">No schedules in view.</div>
+            </template>
+
+            <!-- Schedule list -->
+            <template x-if="$store.auth.hasKey() && !$store.schedules.loading && !$store.schedules.error && $store.schedules.visibleItems().length > 0">
+                <div class="divide-y divide-zinc-800">
+                    <template x-for="schedule in $store.schedules.visibleItems()" :key="schedule.id">
+                        <div class="flex items-center gap-3 px-3 py-2 hover:bg-zinc-800/50 transition-colors cursor-pointer"
+                             @click="$store.schedules.openDetail(schedule.id)">
+                            <!-- Status dot -->
+                            <span :class="schedule.status === 'approved' ? 'bg-cyan-400' : 'bg-amber-400'"
+                                  class="w-2 h-2 rounded-full flex-shrink-0"></span>
+                            <!-- ID (short) + Time + Duration -->
+                            <div class="flex-1 min-w-0">
+                                <span class="font-mono text-sm text-zinc-300"
+                                      :title="schedule.id"
+                                      x-text="schedule.id.slice(0, 8)"></span>
+                                <span class="text-zinc-500 mx-1">·</span>
+                                <span class="text-sm text-zinc-400"
+                                      x-text="$store.schedules.formatDate(schedule.start, { omitDate: false })"></span>
+                                <span class="text-zinc-600 mx-1">·</span>
+                                <span class="text-sm text-zinc-500"
+                                      x-text="$store.schedules.formatDuration(schedule.start, schedule.end)"></span>
+                            </div>
+                            <!-- Actions -->
+                            <div class="flex items-center gap-1 flex-shrink-0" @click.stop>
+                                <button x-show="schedule.status === 'pending'"
+                                        @click="$store.schedules.approve(schedule.id)"
+                                        class="p-1.5 text-green-400 hover:bg-green-500/20 rounded"
+                                        title="Approve">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                </button>
+                                <button x-show="schedule.status === 'pending'"
+                                        @click="$store.schedules.reject(schedule.id)"
+                                        class="p-1.5 text-red-400 hover:bg-red-500/20 rounded"
+                                        title="Reject">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                </button>
+                                <button @click="confirm('Delete this schedule?') && $store.schedules.remove(schedule.id)"
+                                        class="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/20 rounded"
+                                        title="Delete">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </template>
+        </div>
+    </div>
+</div>

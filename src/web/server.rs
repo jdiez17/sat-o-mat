@@ -31,6 +31,7 @@ pub async fn run_server(config: Config) -> std::io::Result<()> {
     let app = Router::new()
         // UI routes
         .route("/", get(ui_handlers::dashboard))
+        .route("/timeline", get(ui_handlers::timeline))
         // Schedule API endpoints
         .route("/api/schedules", post(schedule_handlers::submit_schedule))
         .route("/api/schedules", get(schedule_handlers::list_schedules))
