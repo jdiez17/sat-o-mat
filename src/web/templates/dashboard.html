@@ -3,107 +3,61 @@
 {% block title %}Dashboard - Sat-O-Mat{% endblock %}
 
 {% block content %}
-<div class="grid-stack">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-4 px-4">
     <!-- Timeline Widget -->
-    <div class="grid-stack-item" gs-x="0" gs-y="0" gs-w="12" gs-h="4" gs-min-w="6" gs-min-h="3" gs-id="timeline">
-        <div class="grid-stack-item-content widget bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col h-full overflow-hidden">
-            <div class="grid-drag-handle flex items-center justify-between px-4 py-3 border-b border-zinc-800 cursor-move flex-shrink-0">
-                <div class="flex items-center gap-2">
-                    <a href="/timeline" title="Full screen"
-                       class="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
-                        </svg>
-                    </a>
-                    <h2 class="text-lg font-medium">Timeline</h2>
-                </div>
-                <button @click="$store.schedules.openEditor()"
-                        class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium rounded transition-colors">
-                    + New
-                </button>
-            </div>
-            <div class="widget-content p-4 flex-1 overflow-auto">
+    <div class="lg:col-span-12">
+        <div class="widget bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col overflow-hidden"
+             x-data="{ collapsed: false }">
+            {% set widget_title = "Timeline" %}
+            {% set widget_fullscreen_url = "/timeline" %}
+            {% set widget_fullscreen_title = "Full screen" %}
+            {% set widget_collapsible = true %}
+            {% set widget_right = "<button @click='$store.schedules.openEditor()' class='px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium rounded transition-colors'>+ New</button>" %}
+            {% include "partials/widget_header.html" %}
+            <div class="widget-content p-4" x-show="!collapsed" x-cloak>
                 {% include "partials/timeline_list.html" %}
             </div>
         </div>
     </div>
 
-    <!-- Radio Widget -->
-    <div class="grid-stack-item" gs-x="0" gs-y="4" gs-w="12" gs-h="3" gs-min-w="4" gs-min-h="2" gs-id="radio">
-        <div class="grid-stack-item-content widget bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col h-full overflow-hidden">
-            <div class="grid-drag-handle flex items-center justify-between px-4 py-3 border-b border-zinc-800 cursor-move flex-shrink-0">
-                <h2 class="text-lg font-medium">Radio</h2>
-                <span class="text-xs text-zinc-500 uppercase tracking-wide">Offline</span>
-            </div>
-            <div class="widget-content p-4 flex-1 overflow-auto">
-                {% include "partials/radio_widget.html" %}
+    <!-- FFT Widget -->
+    <div class="lg:col-span-12">
+        <div class="widget bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col overflow-hidden"
+             x-data="{ collapsed: false }">
+            {% set widget_title = "FFT" %}
+            {% set widget_fullscreen_url = "" %}
+            {% set widget_collapsible = true %}
+            {% set widget_right = "<span class='text-xs text-zinc-500 uppercase tracking-wide'>Offline</span>" %}
+            {% include "partials/widget_header.html" %}
+            <div class="widget-content p-4" x-show="!collapsed" x-cloak>
+                {% include "partials/fft_widget.html" %}
             </div>
         </div>
     </div>
 
-    <!-- Rotator Widget -->
-    <div class="grid-stack-item" gs-x="8" gs-y="7" gs-w="4" gs-h="3" gs-min-w="3" gs-min-h="2" gs-id="rotator">
-        <div class="grid-stack-item-content widget bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col h-full overflow-hidden">
-            <div class="grid-drag-handle flex items-center justify-between px-4 py-3 border-b border-zinc-800 cursor-move flex-shrink-0">
-                <h2 class="text-lg font-medium">Rotator</h2>
-                <span class="text-xs text-zinc-500 uppercase tracking-wide">Offline</span>
-            </div>
-            <div class="widget-content p-4 flex-1 overflow-auto">
-                {% include "partials/rotator_widget.html" %}
+    <!-- Controls Widget -->
+    <div class="lg:col-span-12">
+        <div class="widget bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col overflow-hidden"
+             x-data="{ collapsed: false }">
+            {% set widget_title = "Controls" %}
+            {% set widget_fullscreen_url = "" %}
+            {% set widget_collapsible = true %}
+            {% set widget_right = "<span class='text-xs text-zinc-500 uppercase tracking-wide'>Offline</span>" %}
+            {% include "partials/widget_header.html" %}
+            <div class="widget-content p-4" x-show="!collapsed" x-cloak>
+                <div class="grid gap-4 md:grid-cols-3">
+                    <div class="bg-zinc-950 rounded border border-zinc-800 p-4">
+                        {% include "partials/radio_controls.html" %}
+                    </div>
+                    <div class="bg-zinc-950 rounded border border-zinc-800 p-4">
+                        {% include "partials/rotator_widget.html" %}
+                    </div>
+                    <div class="bg-zinc-950 rounded border border-zinc-800 p-4 flex items-center justify-center text-sm text-zinc-500">
+                        Spare
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/gridstack@9/dist/gridstack-all.min.js"></script>
-<script>
-    const WidgetGrid = {
-        grid: null,
-
-        init() {
-            // Clear any old saved layouts
-            localStorage.removeItem('satomat_widget_layout');
-            localStorage.removeItem('satomat_widget_layout_v2');
-
-            this.grid = GridStack.init({
-                cellHeight: 120,
-                margin: 0,
-                float: false,
-                draggable: {
-                    handle: '.grid-drag-handle',
-                },
-                resizable: {
-                    handles: 'all'
-                },
-            });
-
-            // Listen for resize events to update widgets
-            this.grid.on('resizestop', (event, el) => {
-                this.onWidgetResized(el);
-            });
-        },
-
-        onWidgetResized(el) {
-            // Find timeline component and trigger reflow
-            const timelineEl = el.querySelector('[x-data*="timeline"]');
-            if (timelineEl && window.Alpine) {
-                // Alpine 3 API: use Alpine.$data() to access component data
-                const data = Alpine.$data(timelineEl);
-                if (data && data.reflow) {
-                    data.reflow();
-                }
-            }
-        },
-
-        resetLayout() {
-            // Reset to default layout
-            location.reload();
-        },
-    };
-
-    document.addEventListener('DOMContentLoaded', () => WidgetGrid.init());
-    window.WidgetGrid = WidgetGrid;
-</script>
 {% endblock %}

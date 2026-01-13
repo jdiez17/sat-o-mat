@@ -31,9 +31,6 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
 
-    <!-- GridStack CSS - load before custom styles so we can override -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridstack@9/dist/gridstack.min.css">
-
     <style>
         /* Hide elements until Alpine loads */
         [x-cloak] { display: none !important; }
@@ -80,122 +77,6 @@
             pointer-events: none;
         }
 
-        /* GridStack customization */
-        .grid-stack {
-            background: transparent;
-        }
-
-        .grid-stack > .grid-stack-item {
-            overflow: visible;
-        }
-
-        .grid-stack > .grid-stack-item > .grid-stack-item-content {
-            inset: 0 !important;
-            margin: 10px 5px !important;
-            height: auto !important;
-            width: auto !important;
-        }
-
-        /* Resize handles styling - must be above content */
-        .grid-stack > .grid-stack-item > .ui-resizable-handle {
-            background: transparent;
-            z-index: 1000 !important;
-            pointer-events: auto !important;
-        }
-
-        /* All handles positioned at content edges (inset 10px top/bottom, 5px left/right) */
-
-        /* Bottom edge */
-        .grid-stack > .grid-stack-item > .ui-resizable-s {
-            height: 16px !important;
-            bottom: 2px !important;
-            left: 10px !important;
-            right: 10px !important;
-        }
-
-        /* Bottom corners */
-        .grid-stack > .grid-stack-item > .ui-resizable-se {
-            width: 20px !important;
-            height: 20px !important;
-            right: 0 !important;
-            bottom: 0 !important;
-        }
-
-        .grid-stack > .grid-stack-item > .ui-resizable-sw {
-            width: 20px !important;
-            height: 20px !important;
-            left: 0 !important;
-            bottom: 0 !important;
-        }
-
-        /* Top edge */
-        .grid-stack > .grid-stack-item > .ui-resizable-n {
-            height: 16px !important;
-            top: 2px !important;
-            left: 10px !important;
-            right: 10px !important;
-        }
-
-        /* Top corners */
-        .grid-stack > .grid-stack-item > .ui-resizable-ne {
-            width: 20px !important;
-            height: 20px !important;
-            right: 0 !important;
-            top: 0 !important;
-        }
-
-        .grid-stack > .grid-stack-item > .ui-resizable-nw {
-            width: 20px !important;
-            height: 20px !important;
-            left: 0 !important;
-            top: 0 !important;
-        }
-
-        /* Side edges */
-        .grid-stack > .grid-stack-item > .ui-resizable-e {
-            width: 12px !important;
-            right: 0 !important;
-            top: 15px !important;
-            bottom: 15px !important;
-        }
-
-        .grid-stack > .grid-stack-item > .ui-resizable-w {
-            width: 12px !important;
-            left: 0 !important;
-            top: 15px !important;
-            bottom: 15px !important;
-        }
-
-        /* Drag handle cursor */
-        .grid-drag-handle {
-            cursor: grab;
-        }
-
-        .grid-drag-handle:active {
-            cursor: grabbing;
-        }
-
-        /* Placeholder during drag/resize - match content margins */
-        .grid-stack-placeholder > .placeholder-content {
-            background-color: rgba(6, 182, 212, 0.1);
-            border: 2px dashed rgba(6, 182, 212, 0.4);
-            border-radius: 0.5rem;
-            inset: 0 !important;
-            margin: 10px 5px !important;
-            height: auto !important;
-            width: auto !important;
-        }
-
-        /* Animation during drag */
-        .grid-stack > .grid-stack-item.ui-draggable-dragging {
-            opacity: 0.9;
-            z-index: 100;
-        }
-
-        .grid-stack > .grid-stack-item.ui-draggable-dragging > .grid-stack-item-content {
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-        }
-
         /* Timeline drag cursor */
         .cursor-grabbing {
             cursor: grabbing !important;
@@ -218,13 +99,6 @@
                 <span class="text-cyan-400">SAT</span>-O-MAT
             </h1>
             <div class="flex items-center gap-4">
-                <!-- Layout reset -->
-                <button id="reset-layout-btn"
-                        onclick="if(window.WidgetGrid) WidgetGrid.resetLayout()"
-                        class="px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors"
-                        title="Reset widget layout to defaults">
-                    Reset Layout
-                </button>
                 <!-- API Key status -->
                 <div class="flex items-center gap-2">
                     <div class="flex items-center gap-2">
