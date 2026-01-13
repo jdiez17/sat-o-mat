@@ -23,4 +23,5 @@ pub enum Command {
         #[serde(default)]
         web_fft: bool,
     },
+    Stop,
 }

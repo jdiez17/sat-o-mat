@@ -17,6 +17,7 @@ pub enum Command {
         #[serde(default)]
         on_fail: OnFail,
     },
+    Stop,
 }
 
 pub struct Executor {}

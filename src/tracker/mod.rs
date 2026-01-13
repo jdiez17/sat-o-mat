@@ -24,6 +24,7 @@ pub enum Command {
     RotatorPark {
         rotator: String,
     },
+    Stop,
 }
 
 pub struct Tracker {}

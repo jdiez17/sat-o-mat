@@ -109,7 +109,10 @@ fn command_name(cmd: &Command) -> &'static str {
     match cmd {
         Command::Tracker(tracker::Command::Initialize { .. }) => "tracker.initialize",
         Command::Tracker(tracker::Command::RotatorPark { .. }) => "tracker.rotator_park",
+        Command::Tracker(tracker::Command::Stop) => "tracker.stop",
         Command::Executor(executor::Command::RunShell { .. }) => "executor.run_shell",
+        Command::Executor(executor::Command::Stop) => "executor.stop",
         Command::Radio(radio::Command::Run { .. }) => "radio.run",
+        Command::Radio(radio::Command::Stop) => "radio.stop",
     }
 }
