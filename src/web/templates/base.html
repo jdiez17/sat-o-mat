@@ -139,9 +139,10 @@
 
     {% include "partials/modals/api_key.html" %}
     {% include "partials/modals/schedule_modal.html" %}
+    {% include "partials/modals/tracker_modal.html" %}
 
     <!-- Alpine.js app -->
-    <script type="module" src="/static/js/alpine/app.js"></script>
+    <script type="module" src="/static/js/alpine/app.js?v=tracker"></script>
 
     {% block scripts %}{% endblock %}
 </body>

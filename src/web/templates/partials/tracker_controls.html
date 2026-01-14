@@ -1,0 +1,53 @@
+<div class="space-y-4">
+    <div class="flex items-center justify-between">
+        <div>
+            <div class="text-xs text-zinc-500 uppercase tracking-wide">Tracker</div>
+            <div class="text-sm text-zinc-200" x-text="$store.tracker.isRunning() ? 'Active' : 'Idle'"></div>
+        </div>
+        <div class="flex items-center gap-2">
+            <button type="button"
+                    @click="$store.tracker.showModal()"
+                    :disabled="$store.tracker.isRunning()"
+                    class="px-3 py-1.5 text-xs rounded bg-zinc-800 text-zinc-200 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                Start
+            </button>
+            <button type="button"
+                    @click="$store.tracker.stop()"
+                    :disabled="!$store.tracker.isRunning()"
+                    class="px-3 py-1.5 text-xs rounded bg-zinc-800 text-zinc-200 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                Stop
+            </button>
+        </div>
+    </div>
+
+    <div class="grid gap-3 text-sm">
+        <div>
+            <div class="text-xs text-zinc-500 uppercase tracking-wide">Tracking Object</div>
+            <div class="mt-1 font-mono text-zinc-200" x-text="$store.tracker.mode?.Running?.tle_name || '---'"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <div class="text-xs text-zinc-500 uppercase tracking-wide">AOS</div>
+                <div class="mt-1 font-mono text-zinc-200" x-text="$store.tracker.formatDate($store.tracker.mode?.Running?.start)"></div>
+            </div>
+            <div>
+                <div class="text-xs text-zinc-500 uppercase tracking-wide">LOS</div>
+                <div class="mt-1 font-mono text-zinc-200" x-text="$store.tracker.formatDate($store.tracker.mode?.Running?.end)"></div>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <div class="text-xs text-zinc-500 uppercase tracking-wide">Range</div>
+                <div class="mt-1 font-mono text-zinc-200" x-text="$store.tracker.sample ? `${$store.tracker.sample.range_km} km` : '---'"></div>
+            </div>
+            <div>
+                <div class="text-xs text-zinc-500 uppercase tracking-wide">Range Rate</div>
+                <div class="mt-1 font-mono text-zinc-200" x-text="$store.tracker.sample ? `${$store.tracker.sample.range_rate_km_s} km/s` : '---'"></div>
+            </div>
+        </div>
+    </div>
+
+    <template x-if="$store.tracker.error">
+        <div class="text-xs text-red-400" x-text="$store.tracker.error"></div>
+    </template>
+</div>

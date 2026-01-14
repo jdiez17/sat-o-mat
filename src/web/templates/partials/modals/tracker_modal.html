@@ -1,0 +1,51 @@
+<div x-cloak
+     x-show="$store.tracker.modalOpen"
+     x-transition:enter="transition ease-out duration-200"
+     x-transition:enter-start="opacity-0"
+     x-transition:enter-end="opacity-100"
+     x-transition:leave="transition ease-in duration-150"
+     x-transition:leave-start="opacity-100"
+     x-transition:leave-end="opacity-0"
+     class="fixed inset-0 z-50"
+     @keydown.escape.window="$store.tracker.hideModal()">
+    <div class="absolute inset-0 bg-black/60" @click="$store.tracker.hideModal()"></div>
+    <div class="absolute inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[600px] bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+            <h2 class="text-lg font-medium">Start Tracker</h2>
+            <button @click="$store.tracker.hideModal()" class="p-2 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div class="p-4 space-y-4">
+            <div>
+                <label class="text-sm font-medium text-zinc-300">TLE</label>
+                <textarea rows="4"
+                          x-model="$store.tracker.modalTle"
+                          class="mt-2 w-full px-3 py-2 text-sm rounded border border-zinc-700 bg-zinc-950 text-zinc-100 focus:border-cyan-500 focus:outline-none resize-none"></textarea>
+                <p class="text-xs text-zinc-500 mt-1">Paste a 2-line or 3-line TLE.</p>
+            </div>
+            <div>
+                <label class="text-sm font-medium text-zinc-300">End (optional)</label>
+                <input type="datetime-local"
+                       step="1"
+                       x-model="$store.tracker.modalEndLocal"
+                       class="mt-2 w-full px-3 py-2 text-sm rounded border border-zinc-700 bg-zinc-950 text-zinc-100 focus:border-cyan-500 focus:outline-none">
+            </div>
+            <template x-if="$store.tracker.error">
+                <div class="text-xs text-red-400" x-text="$store.tracker.error"></div>
+            </template>
+        </div>
+        <div class="flex items-center justify-end gap-2 px-4 py-3 border-t border-zinc-800">
+            <button @click="$store.tracker.hideModal()"
+                    class="px-3 py-1.5 text-sm border border-zinc-700 rounded hover:border-zinc-600 transition-colors">
+                Cancel
+            </button>
+            <button @click="$store.tracker.start()"
+                    class="px-3 py-1.5 text-sm bg-cyan-600 hover:bg-cyan-500 text-white rounded">
+                Start
+            </button>
+        </div>
+    </div>
+</div>

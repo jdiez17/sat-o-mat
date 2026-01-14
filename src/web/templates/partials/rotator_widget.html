@@ -4,6 +4,18 @@
         <!-- Compass Circle -->
         <div class="absolute inset-0 rounded-full border-2 border-zinc-700"></div>
 
+        <!-- Trajectory Plot -->
+        <svg class="absolute inset-0" viewBox="0 0 128 128">
+            <polyline fill="none" stroke="#22d3ee" stroke-width="1"
+                      x-bind:points="$store.tracker.trajectoryPoints()"></polyline>
+            <template x-if="$store.tracker.currentPoint()">
+                <circle :cx="$store.tracker.currentPoint().split(',')[0]"
+                        :cy="$store.tracker.currentPoint().split(',')[1]"
+                        r="2.5"
+                        fill="#22d3ee"></circle>
+            </template>
+        </svg>
+
         <!-- Cardinal Directions -->
         <div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1 text-xs text-zinc-500">N</div>
         <div class="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1 text-xs text-zinc-500">S</div>
@@ -13,9 +25,25 @@
         <!-- Center Dot -->
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-zinc-600"></div>
 
-        <!-- Azimuth Indicator (placeholder) -->
-        <div class="absolute top-1/2 left-1/2 w-0.5 h-12 bg-zinc-600 origin-bottom -translate-x-1/2"
-             style="transform: translateX(-50%) rotate(0deg);">
+        <!-- Azimuth Indicator (target) -->
+        <div x-show="$store.tracker.sample && $store.tracker.sample.elevation_deg >= 0"
+             class="absolute top-1/2 left-1/2 w-0.5 h-12 bg-cyan-400 origin-bottom -translate-x-1/2"
+             x-bind:style="`transform: translateX(-50%) rotate(${$store.tracker.sample?.azimuth_deg ?? 0}deg);`">
+        </div>
+    </div>
+</div>
+
+<!-- Automatic Control -->
+<div class="space-y-2 mb-4">
+    <div class="text-xs text-zinc-500 uppercase tracking-wide">Automatic Control</div>
+    <div class="grid grid-cols-2 gap-4 text-sm">
+        <div class="bg-zinc-950 rounded px-3 py-2 border border-zinc-800">
+            <div class="text-xs text-zinc-500 uppercase tracking-wide mb-1">Target Azimuth</div>
+            <div class="font-mono text-lg text-zinc-200" x-text="$store.tracker.sample ? `${$store.tracker.sample.azimuth_deg}°` : '---'"></div>
+        </div>
+        <div class="bg-zinc-950 rounded px-3 py-2 border border-zinc-800">
+            <div class="text-xs text-zinc-500 uppercase tracking-wide mb-1">Target Elevation</div>
+            <div class="font-mono text-lg text-zinc-200" x-text="$store.tracker.sample ? `${$store.tracker.sample.elevation_deg}°` : '---'"></div>
         </div>
     </div>
 </div>
