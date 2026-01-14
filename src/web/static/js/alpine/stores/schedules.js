@@ -1,4 +1,6 @@
 // Schedules store - centralized schedule data management
+import { formatDateTime, formatTime } from '../utils/datetime.js';
+
 export default {
     items: [],
     loading: false,
@@ -37,13 +39,14 @@ export default {
 
         const viewStart = new Date(this.viewRange.start);
         const viewEnd = new Date(this.viewRange.end);
-        const buffer = viewEnd.getTime() - viewStart.getTime();
-        const rangeStart = new Date(viewStart.getTime() - buffer);
-        const rangeEnd = new Date(viewEnd.getTime() + buffer);
+        const bufferMs = 2 * 24 * 60 * 60 * 1000;
+        const viewCenterMs = viewStart.getTime() + (viewEnd.getTime() - viewStart.getTime()) / 2;
+        const rangeStart = new Date(viewCenterMs - bufferMs);
+        const rangeEnd = new Date(viewCenterMs + bufferMs);
 
         if (!force && this.loadedRange &&
-            rangeStart.getTime() >= this.loadedRange.start &&
-            rangeEnd.getTime() <= this.loadedRange.end) {
+            viewStart.getTime() >= this.loadedRange.start &&
+            viewEnd.getTime() <= this.loadedRange.end) {
             return;
         }
 
@@ -174,12 +177,7 @@ export default {
     },
 
     formatDate(value, options = {}) {
-        const date = new Date(value);
-        if (isNaN(date.getTime())) return value;
-        const opts = options.omitDate
-            ? { hour: '2-digit', minute: '2-digit' }
-            : { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' };
-        return date.toLocaleString(undefined, opts);
+        return options.omitDate ? formatTime(value) : formatDateTime(value);
     },
 
     formatDuration(start, end) {

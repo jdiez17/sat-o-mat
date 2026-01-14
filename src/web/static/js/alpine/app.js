@@ -2,6 +2,7 @@
 import Alpine from 'https://esm.sh/alpinejs@3.14.3';
 
 import authStore from './stores/auth.js';
+import predictionsStore from './stores/predictions.js';
 import schedulesStore from './stores/schedules.js';
 import trackerStore from './stores/tracker.js';
 import timeline from './components/timeline.js';
@@ -13,6 +14,7 @@ window.Alpine = Alpine;
 
 // Register stores
 Alpine.store('auth', authStore);
+Alpine.store('predictions', predictionsStore);
 Alpine.store('schedules', schedulesStore);
 Alpine.store('tracker', trackerStore);
 

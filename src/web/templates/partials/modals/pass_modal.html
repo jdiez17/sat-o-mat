@@ -1,0 +1,77 @@
+<!-- Pass Details Modal (View Only) -->
+<div x-cloak
+     x-show="$store.predictions.modalOpen"
+     x-transition:enter="transition ease-out duration-200"
+     x-transition:enter-start="opacity-0"
+     x-transition:enter-end="opacity-100"
+     x-transition:leave="transition ease-in duration-150"
+     x-transition:leave-start="opacity-100"
+     x-transition:leave-end="opacity-0"
+     class="fixed inset-0 z-50"
+     @keydown.escape.window="$store.predictions.closeModal()">
+    <div class="absolute inset-0 bg-black/60" @click="$store.predictions.closeModal()"></div>
+    <div class="absolute inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[500px] bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col">
+
+        <template x-if="$store.predictions.modalData">
+            <div>
+                <!-- Header -->
+                <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+                    <div class="flex items-center gap-3">
+                        <h2 class="text-lg font-medium" x-text="$store.predictions.modalData.satellite"></h2>
+                        <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-violet-500/20 text-violet-400">
+                            Pass
+                        </span>
+                    </div>
+                    <button @click="$store.predictions.closeModal()"
+                            class="p-2 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Body -->
+                <div class="p-4 space-y-4">
+                    <!-- Time info -->
+                    <div class="grid grid-cols-3 gap-4">
+                        <div>
+                            <div class="text-xs text-zinc-500 uppercase tracking-wide mb-1">AOS</div>
+                            <div class="text-sm text-zinc-300" x-text="$store.predictions.formatDateTime($store.predictions.modalData.aos)"></div>
+                            <div class="text-xs text-zinc-500" x-text="$store.predictions.modalData.aos_azimuth_deg.toFixed(1) + '° Az'"></div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-zinc-500 uppercase tracking-wide mb-1">TCA</div>
+                            <div class="text-sm text-zinc-300" x-text="$store.predictions.formatDateTime($store.predictions.modalData.tca)"></div>
+                            <div class="text-xs text-violet-400 font-medium" x-text="$store.predictions.modalData.max_elevation_deg.toFixed(1) + '° El'"></div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-zinc-500 uppercase tracking-wide mb-1">LOS</div>
+                            <div class="text-sm text-zinc-300" x-text="$store.predictions.formatDateTime($store.predictions.modalData.los)"></div>
+                            <div class="text-xs text-zinc-500" x-text="$store.predictions.modalData.los_azimuth_deg.toFixed(1) + '° Az'"></div>
+                        </div>
+                    </div>
+
+                    <!-- Duration and NORAD ID -->
+                    <div class="grid grid-cols-2 gap-4 pt-2 border-t border-zinc-800">
+                        <div>
+                            <div class="text-xs text-zinc-500 uppercase tracking-wide mb-1">Duration</div>
+                            <div class="text-sm text-zinc-300" x-text="$store.predictions.formatDuration($store.predictions.modalData.duration_seconds)"></div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-zinc-500 uppercase tracking-wide mb-1">NORAD ID</div>
+                            <div class="font-mono text-sm text-zinc-300" x-text="$store.predictions.modalData.norad_id"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="flex items-center justify-end px-4 py-3 border-t border-zinc-800">
+                    <button @click="$store.predictions.closeModal()"
+                            class="px-4 py-1.5 text-sm text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </template>
+    </div>
+</div>

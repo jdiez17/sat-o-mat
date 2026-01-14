@@ -1,7 +1,7 @@
 <div class="space-y-4">
     <div class="flex items-center justify-between">
         <div>
-            <div class="text-xs text-zinc-500 uppercase tracking-wide">Tracker</div>
+            <div class="text-sm text-zinc-300 uppercase tracking-wide">Tracker</div>
             <div class="text-sm text-zinc-200" x-text="$store.tracker.isRunning() ? 'Active' : 'Idle'"></div>
         </div>
         <div class="flex items-center gap-2">
@@ -44,6 +44,44 @@
                 <div class="text-xs text-zinc-500 uppercase tracking-wide">Range Rate</div>
                 <div class="mt-1 font-mono text-zinc-200" x-text="$store.tracker.sample ? `${$store.tracker.sample.range_rate_km_s} km/s` : '---'"></div>
             </div>
+        </div>
+
+        <div x-data="{ now: Date.now(), get pass() { return $store.predictions?.nextUpcomingPass ? $store.predictions.nextUpcomingPass() : null; } }"
+             x-init="const t = setInterval(() => { now = Date.now(); }, 1000); return () => clearInterval(t);">
+            <template x-if="pass">
+                <div>
+                    <div class="border-t border-zinc-800/60 pt-3"></div>
+                    <div class="text-sm text-zinc-300 uppercase tracking-wide">Next Up</div>
+                    <div class="mt-2 grid gap-3 text-sm">
+                        <div>
+                            <div class="text-xs text-zinc-500 uppercase tracking-wide">Tgt</div>
+                            <div class="mt-1 font-mono text-zinc-200" x-text="pass.satellite"></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <div class="text-xs text-zinc-500 uppercase tracking-wide">AOS</div>
+                                <div class="mt-1 font-mono text-zinc-200">
+                                    <div x-text="$store.predictions.formatDateTime(pass.aos)"></div>
+                                    <div class="text-zinc-500" x-text="$store.predictions.formatRelativeFromNow(pass.aos, now)"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-zinc-500 uppercase tracking-wide">LOS</div>
+                                <div class="mt-1 font-mono text-zinc-200">
+                                    <div x-text="$store.predictions.formatDateTime(pass.los)"></div>
+                                    <div class="text-zinc-500" x-text="$store.predictions.formatRelativeFromNow(pass.los, now)"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <div class="text-xs text-zinc-500 uppercase tracking-wide">Max EL</div>
+                                <div class="mt-1 font-mono text-zinc-200" x-text="`${pass.max_elevation_deg.toFixed(0)}°`"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
         </div>
     </div>
 

@@ -1,3 +1,5 @@
+import { formatDate, formatTime, formatDateTime } from '../utils/datetime.js';
+
 // Timeline component - infinite scroll timeline visualization
 export default () => ({
     virtualWidth: 1000000,
@@ -16,10 +18,15 @@ export default () => ({
     nowPx: 0,
     nowVisible: false,
 
+    rows: [],  // Array of { type: 'schedules'|'events', label: string, items: [] }
+
     isDragging: false,
     dragPointerId: null,
     dragStartX: 0,
+    dragStartViewStartMs: 0,
     dragStartScrollLeft: 0,
+    dragNeedsNotify: false,
+    isPointerCaptured: false,
 
     pointerInside: false,
     pointerViewportX: null,
@@ -44,9 +51,7 @@ export default () => ({
 
     get hoverLabel() {
         if (!this.hoverTime) return '';
-        return this.hoverTime.toLocaleString(undefined, {
-            month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit',
-        });
+        return formatDateTime(this.hoverTime);
     },
 
     init() {
@@ -71,8 +76,81 @@ export default () => ({
             this.$watch('$store.auth.key', () => {
                 Alpine.store('schedules').loadedRange = null;
                 Alpine.store('schedules').fetch(true);
+                if (Alpine.store('predictions')) {
+                    Alpine.store('predictions').loadedRange = null;
+                    Alpine.store('predictions').fetch(true);
+                }
             });
+
+            // Watch for changes in schedules and predictions to rebuild rows
+            this.$watch('$store.schedules.items', () => this.buildRows());
+            if (Alpine.store('predictions')) {
+                this.$watch('$store.predictions.items', () => this.buildRows());
+            }
+            if (Alpine.store('events')) {
+                this.$watch('$store.events.items', () => this.buildRows());
+            }
+
+            // Initial row build
+            this.buildRows();
         });
+    },
+
+    buildRows() {
+        const rows = [];
+
+        // Schedules row (always first)
+        rows.push({
+            type: 'schedules',
+            label: 'Schedules',
+            items: Alpine.store('schedules').items || [],
+        });
+
+        const eventRows = [];
+        if (Alpine.store('events')) {
+            eventRows.push(...this.buildEventRowsFromStore(Alpine.store('events')));
+        }
+        if (Alpine.store('predictions')) {
+            eventRows.push(...this.buildPredictionRows());
+        }
+
+        this.rows = rows.concat(eventRows);
+    },
+
+    buildPredictionRows() {
+        const store = Alpine.store('predictions');
+        const grouped = store.passesBySatellite();
+        const rows = [];
+        for (const [satellite, passes] of Object.entries(grouped)) {
+            rows.push({
+                type: 'events',
+                label: satellite,
+                items: passes,
+                source: 'prediction',
+            });
+        }
+        return rows;
+    },
+
+    buildEventRowsFromStore(store) {
+        const events = store.visibleItems ? store.visibleItems() : (store.items || []);
+        const grouped = new Map();
+        for (const event of events) {
+            const label = this.eventSourceLabel(event);
+            if (!grouped.has(label)) grouped.set(label, []);
+            grouped.get(label).push(event);
+        }
+
+        const rows = [];
+        for (const [label, items] of grouped.entries()) {
+            rows.push({
+                type: 'events',
+                label,
+                items,
+                source: 'event',
+            });
+        }
+        return rows;
     },
 
     updateViewportMetrics() {
@@ -93,6 +171,7 @@ export default () => ({
     },
 
     onScroll() {
+        if (this.isDragging) return;
         if (this.pointerInside && typeof this.pointerViewportX === 'number') {
             this.pointerContentX = this.$refs.scrollContainer.scrollLeft + this.pointerViewportX;
             this.updateHoverTime();
@@ -111,7 +190,7 @@ export default () => ({
         this.viewEnd = new Date(viewStartMs + this.viewDurationMs);
         this.render();
         this.notifyViewChange();
-        this.recenterIfNeeded();
+        if (!this.isDragging) this.recenterIfNeeded();
     },
 
     recenterIfNeeded() {
@@ -136,6 +215,13 @@ export default () => ({
     notifyViewChange() {
         if (!this.viewStart || !this.viewEnd) return;
         Alpine.store('schedules').setViewRange(this.viewStart.toISOString(), this.viewEnd.toISOString());
+        if (Alpine.store('predictions')) {
+            Alpine.store('predictions').setViewRange(this.viewStart.toISOString(), this.viewEnd.toISOString());
+        }
+        if (Alpine.store('events')) {
+            Alpine.store('events').setViewRange(this.viewStart.toISOString(), this.viewEnd.toISOString());
+        }
+        this.buildRows();
     },
 
     zoomIn() { this.adjustZoom(0.5); },
@@ -201,18 +287,16 @@ export default () => ({
     onPointerDown(event) {
         if (event.button !== 0 && event.pointerType === 'mouse') return;
 
-        // Don't capture pointer if clicking on a schedule block (let click event fire)
-        if (event.target.closest('.cursor-pointer')) {
-            return;
-        }
-
         this.pointerInside = true;
         this.updatePointerPosition(event);
         this.dragPointerId = event.pointerId;
         this.dragStartX = event.clientX;
+        this.dragStartViewStartMs = this.viewStart ? this.viewStart.getTime() : Date.now();
         this.dragStartScrollLeft = this.$refs.scrollContainer.scrollLeft;
         this.hasDragged = false;
-        this.$refs.scrollContainer.setPointerCapture(event.pointerId);
+        this.isDragging = false;
+        this.dragNeedsNotify = false;
+        this.isPointerCaptured = false;
     },
 
     onPointerMove(event) {
@@ -220,28 +304,37 @@ export default () => ({
         if (event.pointerId !== this.dragPointerId) return;
 
         const dragDistance = Math.abs(event.clientX - this.dragStartX);
-        if (!this.isDragging && dragDistance > 5) {
-            // Start dragging only after moving more than 5px
+        if (!this.isDragging && dragDistance > 3) {
+            // Start dragging only after moving more than 3px (reduced threshold for better UX)
             this.isDragging = true;
             this.hasDragged = true;
+            if (!this.isPointerCaptured) {
+                this.$refs.scrollContainer.setPointerCapture(event.pointerId);
+                this.isPointerCaptured = true;
+            }
         }
 
         if (this.isDragging) {
             event.preventDefault();
-            this.$refs.scrollContainer.scrollLeft = this.dragStartScrollLeft - (event.clientX - this.dragStartX);
+            this.applyDrag(event.clientX);
         }
     },
 
     onPointerUp(event) {
         if (event.pointerId === this.dragPointerId) {
-            // If we didn't drag, allow click events to fire
-            if (!this.hasDragged) {
-                // Don't prevent click
-            }
             this.isDragging = false;
             this.dragPointerId = null;
             this.hasDragged = false;
-            this.$refs.scrollContainer.releasePointerCapture(event.pointerId);
+            this.dragStartViewStartMs = 0;
+            this.dragStartScrollLeft = 0;
+            if (this.dragNeedsNotify) {
+                this.dragNeedsNotify = false;
+                this.notifyViewChange();
+            }
+            if (this.isPointerCaptured) {
+                this.$refs.scrollContainer.releasePointerCapture(event.pointerId);
+                this.isPointerCaptured = false;
+            }
         }
     },
 
@@ -268,6 +361,50 @@ export default () => ({
 
     updateHoverTime() {
         this.hoverTime = typeof this.pointerContentX === 'number' ? this.pixelToTime(this.pointerContentX) : null;
+    },
+
+    applyDrag(clientX) {
+        const deltaMs = (this.dragStartX - clientX) * this.msPerPixel;
+        const newStartMs = this.dragStartViewStartMs + deltaMs;
+        this.viewStart = new Date(newStartMs);
+        this.viewEnd = new Date(newStartMs + this.viewDurationMs);
+        this.anchorTime = new Date(newStartMs - this.dragStartScrollLeft * this.msPerPixel);
+        this.render();
+        this.dragNeedsNotify = true;
+    },
+
+    getItemStart(item) {
+        return item.start ?? item.aos;
+    },
+
+    getItemEnd(item) {
+        return item.end ?? item.los;
+    },
+
+    itemStyle(item) {
+        const start = this.getItemStart(item);
+        const end = this.getItemEnd(item);
+        if (!start || !end) return 'display: none';
+        const startPx = Math.max(0, this.timeToPx(new Date(start)));
+        const endPx = Math.min(this.virtualWidth, this.timeToPx(new Date(end)));
+        return `left: ${startPx}px; width: ${Math.max(4, endPx - startPx)}px`;
+    },
+
+    itemWidth(item) {
+        const start = this.getItemStart(item);
+        const end = this.getItemEnd(item);
+        if (!start || !end) return 0;
+        return this.timeToPx(new Date(end)) - this.timeToPx(new Date(start));
+    },
+
+    itemVisible(item) {
+        const start = this.getItemStart(item);
+        const end = this.getItemEnd(item);
+        if (!start || !end) return false;
+        if (!this.viewStart || !this.viewEnd) return false;
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+        return !(endDate <= this.viewStart || startDate >= this.viewEnd);
     },
 
     pixelToTime(px) {
@@ -312,11 +449,11 @@ export default () => ({
             if (px >= 0 && px <= this.virtualWidth) {
                 let label;
                 if (isMajor && current.getHours() === 0 && current.getMinutes() === 0) {
-                    label = current.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                    label = formatDate(current);
                 } else if (intervalHours < 1 || isMajor) {
-                    label = current.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+                    label = formatTime(current);
                 } else {
-                    label = current.getHours().toString().padStart(2, '0');
+                    label = formatTime(current);
                 }
                 newMarkers.push({ time: current.getTime(), px, major: isMajor, label });
             }
@@ -332,23 +469,72 @@ export default () => ({
     },
 
     scheduleStyle(schedule) {
-        const startPx = Math.max(0, this.timeToPx(new Date(schedule.start)));
-        const endPx = Math.min(this.virtualWidth, this.timeToPx(new Date(schedule.end)));
-        return `left: ${startPx}px; width: ${Math.max(4, endPx - startPx)}px`;
+        return this.itemStyle(schedule);
     },
 
     scheduleWidth(schedule) {
-        return this.timeToPx(new Date(schedule.end)) - this.timeToPx(new Date(schedule.start));
+        return this.itemWidth(schedule);
     },
 
     scheduleVisible(schedule) {
-        const start = new Date(schedule.start);
-        const end = new Date(schedule.end);
-        return !(end <= this.viewStart || start >= this.viewEnd);
+        return this.itemVisible(schedule);
     },
 
     scheduleTitle(schedule) {
-        const fmt = (d) => d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-        return `${schedule.id}: ${fmt(new Date(schedule.start))} - ${fmt(new Date(schedule.end))}`;
+        return `${schedule.id}: ${formatTime(schedule.start)} - ${formatTime(schedule.end)}`;
+    },
+
+    // Pass helper methods
+    passStyle(pass) {
+        return this.itemStyle(pass);
+    },
+
+    passWidth(pass) {
+        return this.itemWidth(pass);
+    },
+
+    passVisible(pass) {
+        return this.itemVisible(pass);
+    },
+
+    passTitle(pass) {
+        return `${pass.satellite}: Max ${pass.max_elevation_deg}° at ${formatTime(pass.tca)}`;
+    },
+
+    eventTitle(event) {
+        if (event.satellite && event.tca) return this.passTitle(event);
+        const start = this.getItemStart(event);
+        const end = this.getItemEnd(event);
+        const label = event.title || event.label || event.name || 'Event';
+        if (!start || !end) return label;
+        return `${label}: ${formatTime(start)} - ${formatTime(end)}`;
+    },
+
+    eventLabel(event) {
+        if (typeof event.max_elevation_deg === 'number') {
+            return `${Math.round(event.max_elevation_deg)}°`;
+        }
+        return event.short_label || event.label || event.title || '';
+    },
+
+    eventSourceLabel(event) {
+        if (event?.source && typeof event.source === 'string') return event.source;
+        if (event?.source && typeof event.source === 'object') {
+            return event.source.name || event.source.label || event.source.id || 'Events';
+        }
+        return event.source_name || event.provider || event.origin || event.kind || event.type || 'Events';
+    },
+
+    openEventDetail(event) {
+        if (Alpine.store('predictions') && event.satellite) {
+            Alpine.store('predictions').openDetail(event);
+            return;
+        }
+        const eventsStore = Alpine.store('events');
+        if (eventsStore?.openDetail) {
+            eventsStore.openDetail(event);
+        } else if (eventsStore?.openDetailById && event.id) {
+            eventsStore.openDetailById(event.id);
+        }
     },
 });

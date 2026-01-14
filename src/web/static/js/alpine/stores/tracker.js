@@ -1,3 +1,5 @@
+import { formatDateTime } from '../utils/datetime.js';
+
 const DEFAULT_TLE = `ISS (ZARYA)
 1 25544U 98067A   26012.17690827  .00009276  00000-0  17471-3 0  9998
 2 25544  51.6333 351.7881 0007723   8.9804 351.1321 15.49250518547578`;
@@ -40,16 +42,8 @@ export default {
 
     formatDate(value) {
         if (!value) return '---';
-        const date = new Date(value);
-        if (isNaN(date.getTime())) return '---';
-        return date.toLocaleString(undefined, {
-            year: 'numeric',
-            month: 'short',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-        });
+        const formatted = formatDateTime(value);
+        return formatted === value ? '---' : formatted;
     },
 
     formatFrequency(value) {

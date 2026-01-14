@@ -61,6 +61,10 @@
             <span class="w-2.5 h-2.5 rounded bg-amber-500"></span>
             <span>Pending</span>
         </div>
+        <div class="flex items-center gap-1">
+            <span class="w-2.5 h-2.5 rounded bg-violet-500"></span>
+            <span>Events</span>
+        </div>
         <div class="hidden sm:flex items-center gap-1">
             <span class="w-2.5 h-2.5 rounded bg-zinc-600"></span>
             <span>Completed</span>
@@ -71,60 +75,101 @@
         </div>
     </div>
 
-    <!-- Scrollable Timeline Container -->
-    <div x-ref="scrollContainer"
-         @scroll="onScroll()"
-         @pointerdown="onPointerDown($event)"
-         @pointermove="onPointerMove($event)"
-         @pointerup="onPointerUp($event)"
-         @pointercancel="onPointerUp($event)"
-         @pointerenter="onPointerEnter($event)"
-         @pointerleave="onPointerLeave()"
-         :class="{ 'cursor-grabbing': isDragging }"
-         class="overflow-x-auto scrollbar-hidden border border-zinc-800 rounded-lg bg-zinc-900/50 cursor-grab select-none"
-         style="scrollbar-width: none; -ms-overflow-style: none;"
-         onmousedown="return false;"
-         ondragstart="return false;">
-        <!-- Timeline canvas -->
-        <div x-ref="content" class="relative overflow-visible" style="height: 120px;">
-            <!-- Time markers -->
-            <template x-for="marker in markers" :key="marker.time">
-                <div class="absolute top-0 bottom-0 border-l"
-                     :class="marker.major ? 'border-zinc-600' : 'border-zinc-800'"
-                     :style="`left: ${marker.px}px`">
-                    <span class="absolute -top-0.5 left-1 text-xs whitespace-nowrap"
-                          :class="marker.major ? 'text-zinc-400' : 'text-zinc-600'"
-                          x-text="marker.label"></span>
+    <!-- Timeline with row labels -->
+    <div class="flex border border-zinc-800 rounded-lg overflow-hidden">
+        <!-- Row labels (left side) -->
+        <div class="flex-shrink-0 w-24 bg-zinc-900/30 border-r border-zinc-800 pointer-events-none">
+            <div class="h-6"></div> <!-- Spacer for marker row -->
+            <template x-for="(row, idx) in rows" :key="row.type + row.label">
+                <div class="h-7 flex items-center px-2 text-xs text-zinc-400 truncate border-b border-zinc-800/30"
+                     :title="row.label">
+                    <span x-text="row.label"></span>
                 </div>
             </template>
+        </div>
 
-            <!-- Schedule blocks -->
-            <template x-for="schedule in $store.schedules.items" :key="schedule.id">
-                <div x-show="scheduleVisible(schedule)"
-                     @click="$store.schedules.openDetail(schedule.id)"
-                     :style="scheduleStyle(schedule)"
-                     :title="scheduleTitle(schedule)"
-                     :class="schedule.status === 'approved' ? 'bg-cyan-500' : 'bg-amber-500'"
-                     class="absolute top-8 bottom-4 rounded cursor-pointer transition-all hover:brightness-110 hover:z-20">
-                    <span x-show="scheduleWidth(schedule) > 60"
-                          x-text="schedule.id"
-                          class="absolute inset-0 flex items-center justify-center text-xs font-medium text-white truncate px-1"></span>
+        <!-- Scrollable Timeline Container -->
+        <div x-ref="scrollContainer"
+             @scroll="onScroll()"
+             @pointerdown="onPointerDown($event)"
+             @pointermove="onPointerMove($event)"
+             @pointerup="onPointerUp($event)"
+             @pointercancel="onPointerUp($event)"
+             @pointerup.window="onPointerUp($event)"
+             @pointercancel.window="onPointerUp($event)"
+             @pointerenter="onPointerEnter($event)"
+             @pointerleave="onPointerLeave()"
+             :class="{ 'cursor-grabbing': isDragging }"
+             class="flex-1 overflow-x-auto scrollbar-hidden bg-zinc-900/50 cursor-grab select-none"
+             style="scrollbar-width: none; -ms-overflow-style: none; touch-action: none;"
+             onmousedown="return false;"
+             ondragstart="return false;">
+            <!-- Timeline canvas -->
+            <div x-ref="content" class="relative overflow-visible" :style="`height: ${24 + rows.length * 28}px`">
+                <!-- Time markers -->
+                <template x-for="marker in markers" :key="marker.time">
+                    <div class="absolute top-0 bottom-0 border-l"
+                         :class="marker.major ? 'border-zinc-600' : 'border-zinc-800'"
+                         :style="`left: ${marker.px}px`">
+                        <span class="absolute -top-0.5 left-1 text-xs whitespace-nowrap"
+                              :class="marker.major ? 'text-zinc-400' : 'text-zinc-600'"
+                              x-text="marker.label"></span>
+                    </div>
+                </template>
+
+                <!-- Row backgrounds and items -->
+                <template x-for="(row, rowIdx) in rows" :key="row.type + row.label">
+                    <div class="absolute left-0 right-0 border-b border-zinc-800/20"
+                         :style="`top: ${24 + rowIdx * 28}px; height: 28px`">
+
+                        <!-- Schedule blocks -->
+                        <template x-if="row.type === 'schedules'">
+                            <template x-for="schedule in row.items" :key="schedule.id">
+                                <div x-show="scheduleVisible(schedule)"
+                                     @click="if (hasDragged) return; $store.schedules.openDetail(schedule.id)"
+                                     :style="scheduleStyle(schedule)"
+                                     :title="scheduleTitle(schedule)"
+                                     :class="[schedule.status === 'approved' ? 'bg-cyan-500' : 'bg-amber-500', isDragging ? '' : 'transition-all']"
+                                     class="absolute top-1 bottom-1 rounded cursor-pointer hover:brightness-110 hover:z-20">
+                                    <span x-show="scheduleWidth(schedule) > 60"
+                                          x-text="schedule.id.slice(0,8)"
+                                          class="absolute inset-0 flex items-center justify-center text-xs font-medium text-white truncate px-1"></span>
+                                </div>
+                            </template>
+                        </template>
+
+                        <!-- Event blocks -->
+                        <template x-if="row.type === 'events'">
+                            <template x-for="event in row.items" :key="event.id || event.aos || event.start">
+                                <div x-show="itemVisible(event)"
+                                     @click="if (hasDragged) return; openEventDetail(event)"
+                                     :style="itemStyle(event)"
+                                     :title="eventTitle(event)"
+                                     :class="isDragging ? 'bg-violet-500' : 'bg-violet-500 transition-all'"
+                                     class="absolute top-1 bottom-1 rounded cursor-pointer hover:brightness-110 hover:z-20">
+                                    <span x-show="itemWidth(event) > 40"
+                                          x-text="eventLabel(event)"
+                                          class="absolute inset-0 flex items-center justify-center text-xs font-medium text-white truncate px-1"></span>
+                                </div>
+                            </template>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- Time cursor with label -->
+                <div x-show="pointerInside && pointerContentX !== null"
+                     :style="`left: ${pointerContentX}px`"
+                     class="absolute top-0 bottom-0 w-px bg-cyan-400/70 pointer-events-none z-40">
+                    <span x-text="hoverLabel"
+                          class="absolute bottom-1 left-1.5 text-xs text-cyan-300 bg-zinc-900/90 px-1.5 py-0.5 rounded whitespace-nowrap"></span>
                 </div>
-            </template>
 
-            <!-- Time cursor with label -->
-            <div x-show="pointerInside && pointerContentX !== null"
-                 :style="`left: ${pointerContentX}px`"
-                 class="absolute top-0 bottom-0 w-px bg-cyan-400/70 pointer-events-none z-40">
-                <span x-text="hoverLabel"
-                      class="absolute bottom-1 left-1.5 text-xs text-cyan-300 bg-zinc-900/90 px-1.5 py-0.5 rounded whitespace-nowrap"></span>
-            </div>
-
-            <!-- Current time indicator -->
-            <div x-show="nowVisible"
-                 :style="`left: ${nowPx}px`"
-                 class="absolute top-0 bottom-0 w-0.5 bg-red-500 z-30 pointer-events-none">
-                <div class="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-red-500 rounded-full"></div>
+                <!-- Current time indicator -->
+                <div x-show="nowVisible"
+                     :style="`left: ${nowPx}px`"
+                     class="absolute top-0 bottom-0 w-0.5 bg-red-500 z-30 pointer-events-none">
+                    <div class="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-red-500 rounded-full"></div>
+                </div>
             </div>
         </div>
     </div>

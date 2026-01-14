@@ -1,3 +1,5 @@
+import { formatDateTime } from '../utils/datetime.js';
+
 // Unified Schedule Modal component (view/edit/new)
 export default () => ({
     yamlEditor: null,
@@ -354,7 +356,6 @@ export default () => ({
     },
 
     formatDisplayDate(value) {
-        const d = new Date(value);
-        return isNaN(d.getTime()) ? value : d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        return formatDateTime(value);
     },
 });

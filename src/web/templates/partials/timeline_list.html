@@ -2,33 +2,49 @@
     {% include "partials/timeline_chart.html" %}
 </div>
 
+<div x-data="{ schedulesOpen: true, eventsOpen: false }">
 <!-- Schedule List Table -->
-<div class="mt-6">
-    <div class="overflow-x-auto"> <!--" border border-zinc-800 rounded-lg"> -->
+<div class="mt-4">
+    <button type="button"
+            class="flex items-center gap-1.5 w-full mb-2 text-left text-zinc-400 hover:text-zinc-200"
+            title="Toggle schedules"
+            @click="schedulesOpen = !schedulesOpen"
+            :aria-expanded="schedulesOpen.toString()">
+        <span class="p-1.5 hover:bg-zinc-800 rounded transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" x-show="schedulesOpen" x-cloak>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 15l6-6 6 6"/>
+            </svg>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" x-show="!schedulesOpen" x-cloak>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9l-6 6-6-6"/>
+            </svg>
+        </span>
+        <span class="text-xs uppercase tracking-wide text-zinc-500">Schedules</span>
+    </button>
+    <div class="overflow-x-auto" x-show="schedulesOpen" x-cloak> <!--" border border-zinc-800 rounded-lg"> -->
         <div>
             <!-- No API key state -->
             <template x-if="!$store.auth.hasKey()">
-                <div class="text-center py-4 text-zinc-500">Connect your API key to load schedules.</div>
+                <div class="text-center py-2 text-zinc-500">Connect your API key to load schedules.</div>
             </template>
 
             <!-- No view range state -->
             <template x-if="$store.auth.hasKey() && !$store.schedules.viewRange.start">
-                <div class="text-center py-4 text-zinc-500">Adjust the timeline to choose a time range.</div>
+                <div class="text-center py-2 text-zinc-500">Adjust the timeline to choose a time range.</div>
             </template>
 
             <!-- Loading state -->
             <template x-if="$store.auth.hasKey() && $store.schedules.viewRange.start && $store.schedules.loading">
-                <div class="text-center py-4 text-zinc-500">Loading schedules...</div>
+                <div class="text-center py-2 text-zinc-500">Loading schedules...</div>
             </template>
 
             <!-- Error state -->
             <template x-if="$store.auth.hasKey() && $store.schedules.error && !$store.schedules.loading">
-                <div class="text-center py-4 text-red-400" x-text="$store.schedules.error"></div>
+                <div class="text-center py-2 text-red-400" x-text="$store.schedules.error"></div>
             </template>
 
             <!-- Empty state -->
             <template x-if="$store.auth.hasKey() && $store.schedules.viewRange.start && !$store.schedules.loading && !$store.schedules.error && $store.schedules.visibleItems().length === 0">
-                <div class="text-center py-8 text-zinc-500">No schedules in view.</div>
+                <div class="text-center py-2 text-zinc-500">No schedules in view.</div>
             </template>
 
             <!-- Schedule list -->
@@ -84,4 +100,75 @@
             </template>
         </div>
     </div>
+</div>
+
+<!-- Events List Table -->
+<div class="mt-4">
+    <button type="button"
+            class="flex items-center gap-1.5 w-full mb-2 text-left text-zinc-400 hover:text-zinc-200"
+            title="Toggle events"
+            @click="eventsOpen = !eventsOpen"
+            :aria-expanded="eventsOpen.toString()">
+        <span class="p-1.5 hover:bg-zinc-800 rounded transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" x-show="eventsOpen" x-cloak>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 15l6-6 6 6"/>
+            </svg>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" x-show="!eventsOpen" x-cloak>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9l-6 6-6-6"/>
+            </svg>
+        </span>
+        <span class="text-xs uppercase tracking-wide text-zinc-500">Events</span>
+    </button>
+    <div class="overflow-x-auto" x-show="eventsOpen" x-cloak>
+        <div>
+            <!-- No API key state -->
+            <template x-if="!$store.auth.hasKey()">
+                <div class="text-center py-2 text-zinc-500">Connect your API key to load events.</div>
+            </template>
+
+            <!-- No view range state -->
+            <template x-if="$store.auth.hasKey() && !$store.predictions.viewRange.start">
+                <div class="text-center py-2 text-zinc-500">Adjust the timeline to choose a time range.</div>
+            </template>
+
+            <!-- Loading state -->
+            <template x-if="$store.auth.hasKey() && $store.predictions.viewRange.start && $store.predictions.loading">
+                <div class="text-center py-2 text-zinc-500">Loading events...</div>
+            </template>
+
+            <!-- Error state -->
+            <template x-if="$store.auth.hasKey() && $store.predictions.error && !$store.predictions.loading">
+                <div class="text-center py-2 text-red-400" x-text="$store.predictions.error"></div>
+            </template>
+
+            <!-- Empty state -->
+            <template x-if="$store.auth.hasKey() && $store.predictions.viewRange.start && !$store.predictions.loading && !$store.predictions.error && ($store.predictions.visiblePasses ? $store.predictions.visiblePasses().length : 0) === 0">
+                <div class="text-center py-2 text-zinc-500">No events in view.</div>
+            </template>
+
+            <!-- Events list -->
+            <template x-if="$store.auth.hasKey() && !$store.predictions.loading && !$store.predictions.error && ($store.predictions.visiblePasses ? $store.predictions.visiblePasses().length : 0) > 0">
+                <div class="divide-y divide-zinc-800">
+                    <template x-for="pass in ($store.predictions.visiblePasses ? $store.predictions.visiblePasses() : [])" :key="pass.aos">
+                        <div class="flex items-center gap-3 px-3 py-2 hover:bg-zinc-800/50 transition-colors cursor-pointer"
+                             @click="$store.predictions.openDetail(pass)">
+                            <span class="w-2 h-2 rounded-full flex-shrink-0 bg-violet-400"></span>
+                            <div class="flex-1 min-w-0">
+                                <span class="text-sm text-zinc-300" x-text="pass.satellite"></span>
+                                <span class="text-zinc-500 mx-1">·</span>
+                                <span class="text-sm text-zinc-400" x-text="$store.predictions.formatDateTime(pass.aos)"></span>
+                                <span class="text-zinc-600 mx-1">·</span>
+                                <span class="text-sm text-zinc-500" x-text="$store.predictions.formatDuration(pass.duration_seconds)"></span>
+                            </div>
+                            <div class="flex items-center gap-2 text-xs text-zinc-500">
+                                <span x-text="`${pass.max_elevation_deg.toFixed(0)}° max`"></span>
+                                <span x-show="pass.orbit_number !== null" x-text="`Orbit ${pass.orbit_number}`"></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </template>
+        </div>
+    </div>
+</div>
 </div>
