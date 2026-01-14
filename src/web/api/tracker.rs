@@ -42,7 +42,6 @@ pub async fn run(
     let mut tracker = state.tracker.lock().await;
     tracker
         .run(request.tle, request.end, request.radio)
-        .await
         .map_err(map_tracker_error)?;
     Ok(Json(tracker.status().mode))
 }
@@ -65,7 +64,7 @@ pub async fn stop(
 ) -> ApiResult<Json<TrackerMode>> {
     require_permission(&user, Permission::SubmitSchedule)?;
     let mut tracker = state.tracker.lock().await;
-    tracker.stop().await;
+    tracker.stop();
     Ok(Json(tracker.status().mode))
 }
 

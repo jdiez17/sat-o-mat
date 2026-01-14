@@ -1,9 +1,7 @@
 use chrono::{DateTime, Duration, Utc};
 use sgp4::{Constants, Elements};
-use std::sync::{Arc, Mutex as StdMutex};
-use tokio::sync::oneshot;
-use tokio::task::JoinHandle;
-use tokio::time::{sleep_until, Instant};
+use std::sync::{mpsc, Arc, Mutex as StdMutex};
+use std::thread;
 
 use super::error::TrackerError;
 use super::ground_station::GroundStation;
@@ -46,8 +44,8 @@ struct Shared {
 
 #[derive(Debug)]
 struct WorkerHandle {
-    stop_tx: oneshot::Sender<()>,
-    join: JoinHandle<Result<(), TrackerError>>,
+    stop_tx: mpsc::Sender<()>,
+    join: thread::JoinHandle<Result<(), TrackerError>>,
 }
 
 pub struct Tracker {
@@ -75,16 +73,16 @@ impl Tracker {
         self.shared.lock().unwrap().status.clone()
     }
 
-    pub async fn stop(&mut self) {
+    pub fn stop(&mut self) {
         if let Some(worker) = self.worker.take() {
             let _ = worker.stop_tx.send(());
-            let _ = worker.join.await;
+            let _ = worker.join.join();
         }
         let mut locked = self.shared.lock().unwrap();
         locked.status.mode = TrackerMode::Idle;
     }
 
-    pub async fn run(
+    pub fn run(
         &mut self,
         tle: String,
         end: Option<DateTime<Utc>>,
@@ -96,10 +94,10 @@ impl Tracker {
 
         let shared = self.shared.clone();
         let station = self.station;
-        let (stop_tx, stop_rx) = oneshot::channel();
+        let (stop_tx, stop_rx) = mpsc::channel();
 
-        let join = tokio::spawn(async move {
-            let result = run_tracker_loop(shared.clone(), station, tle, end, radio, stop_rx).await;
+        let join = thread::spawn(move || {
+            let result = run_tracker_loop(shared.clone(), station, tle, end, radio, stop_rx);
 
             if result.is_err() {
                 let mut locked = shared.lock().unwrap();
@@ -126,13 +124,13 @@ impl Tracker {
     }
 }
 
-async fn run_tracker_loop(
+fn run_tracker_loop(
     shared: Arc<StdMutex<Shared>>,
     station: GroundStation,
     tle: String,
     end: Option<DateTime<Utc>>,
     radio: Option<RadioConfig>,
-    mut stop_rx: oneshot::Receiver<()>,
+    stop_rx: mpsc::Receiver<()>,
 ) -> Result<(), TrackerError> {
     let (name, line1, line2) = parse_tle_lines(&tle)?;
     let elements = Elements::from_tle(name, line1.as_bytes(), line2.as_bytes())?;
@@ -185,9 +183,10 @@ async fn run_tracker_loop(
                 std::time::Duration::from_secs(0)
             };
 
-            let should_stop = tokio::select! {
-                _ = sleep_until(Instant::now() + sleep_duration) => false,
-                _ = &mut stop_rx => true,
+            let should_stop = match stop_rx.recv_timeout(sleep_duration) {
+                Ok(()) => true,
+                Err(mpsc::RecvTimeoutError::Timeout) => false,
+                Err(mpsc::RecvTimeoutError::Disconnected) => true,
             };
             if should_stop {
                 let mut locked = shared.lock().unwrap();
