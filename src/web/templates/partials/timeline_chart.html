@@ -2,8 +2,8 @@
 <div x-data="timeline()" x-init="init()" class="relative">
     <!-- Controls bar - responsive layout -->
     <div class="flex flex-wrap items-center gap-2 mb-3">
-        <!-- Time range picker - hidden on very narrow widths -->
-        <div class="hidden sm:flex items-center gap-2 flex-1 min-w-0">
+        <!-- Time range picker - stacked on mobile, inline on larger screens -->
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 min-w-0">
             <div class="flex items-center gap-1">
                 <input type="datetime-local"
                        step="1"
