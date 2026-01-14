@@ -88,6 +88,7 @@ impl Tracker {
         end: Option<DateTime<Utc>>,
         radio: Option<RadioConfig>,
     ) -> Result<(), TrackerError> {
+        self.reap_finished_worker();
         if self.worker.is_some() {
             return Err(TrackerError::AlreadyRunning);
         }
@@ -121,6 +122,19 @@ impl Tracker {
         }
 
         Ok(())
+    }
+
+    fn reap_finished_worker(&mut self) {
+        let is_finished = self
+            .worker
+            .as_ref()
+            .map(|worker| worker.join.is_finished())
+            .unwrap_or(false);
+        if is_finished {
+            if let Some(worker) = self.worker.take() {
+                let _ = worker.join.join();
+            }
+        }
     }
 }
 
@@ -205,5 +219,7 @@ fn run_tracker_loop(
 
     let mut locked = shared.lock().unwrap();
     locked.status.mode = TrackerMode::Idle;
+    locked.status.last_sample = None;
+    locked.status.trajectory.clear();
     Ok(())
 }
