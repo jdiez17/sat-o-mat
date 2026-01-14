@@ -7,8 +7,8 @@ use super::error::TrackerError;
 use super::ground_station::GroundStation;
 use super::parsing::parse_tle_lines;
 use super::sample::TrackerSample;
-use super::trajectory::{build_frequency_plan, build_trajectory};
 use super::types::RadioConfig;
+use crate::predict::{build_frequency_plan, predict_trajectory};
 use serde::Serialize;
 
 const DEFAULT_OPEN_ENDED: Duration = Duration::minutes(15);
@@ -171,7 +171,7 @@ fn run_tracker_loop(
     loop {
         let window_start = Utc::now();
         let window_end = end.unwrap_or(window_start + DEFAULT_OPEN_ENDED);
-        let trajectory = build_trajectory(
+        let trajectory = predict_trajectory(
             &station,
             &elements,
             &constants,

@@ -1,11 +1,26 @@
 use chrono::{DateTime, Duration, Utc};
 use sgp4::{Constants, Elements};
 
-use super::parsing::parse_frequency_hz;
 use crate::tracker::{
     FrequencyPlan, GroundStation, TrackerError, TrackerSample, EARTH_ROTATION_RAD_S,
     SPEED_OF_LIGHT_KM_S,
 };
+
+fn parse_frequency_hz(input: &str) -> Option<f64> {
+    let trimmed = input.trim();
+    let mut parts = trimmed.split_whitespace();
+    let value_str = parts.next()?;
+    let unit = parts.next().unwrap_or("hz").to_lowercase();
+    let value: f64 = value_str.parse().ok()?;
+    let multiplier = match unit.as_str() {
+        "hz" => 1.0,
+        "khz" => 1e3,
+        "mhz" => 1e6,
+        "ghz" => 1e9,
+        _ => 1.0,
+    };
+    Some(value * multiplier)
+}
 
 pub fn build_frequency_plan(uplink: Option<String>, downlink: Option<String>) -> FrequencyPlan {
     FrequencyPlan {
@@ -14,7 +29,7 @@ pub fn build_frequency_plan(uplink: Option<String>, downlink: Option<String>) ->
     }
 }
 
-pub fn build_trajectory(
+pub fn predict_trajectory(
     station: &GroundStation,
     elements: &Elements,
     constants: &Constants,
