@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use log::error;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use thiserror::Error;
@@ -84,8 +85,21 @@ impl Storage {
                 .map(String::from)
                 .unwrap_or_default();
 
-            let content = std::fs::read_to_string(&entry_path)?;
-            let schedule = Schedule::from_str(&content)?;
+            let content = match std::fs::read_to_string(&entry_path) {
+                Ok(content) => content,
+                Err(e) => {
+                    error!("Failed to read schedule file {}: {}", entry_path.display(), e);
+                    continue;
+                }
+            };
+
+            let schedule = match Schedule::from_str(&content) {
+                Ok(schedule) => schedule,
+                Err(e) => {
+                    error!("Failed to parse schedule {}: {}", id, e);
+                    continue;
+                }
+            };
 
             entries.push(ScheduleEntry {
                 id,
