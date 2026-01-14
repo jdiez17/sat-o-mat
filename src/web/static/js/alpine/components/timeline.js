@@ -202,24 +202,39 @@ export default () => ({
         if (event.button !== 0 && event.pointerType === 'mouse') return;
         this.pointerInside = true;
         this.updatePointerPosition(event);
-        this.isDragging = true;
         this.dragPointerId = event.pointerId;
         this.dragStartX = event.clientX;
         this.dragStartScrollLeft = this.$refs.scrollContainer.scrollLeft;
+        this.hasDragged = false;
         this.$refs.scrollContainer.setPointerCapture(event.pointerId);
     },
 
     onPointerMove(event) {
         this.updatePointerPosition(event);
-        if (!this.isDragging || event.pointerId !== this.dragPointerId) return;
-        event.preventDefault();
-        this.$refs.scrollContainer.scrollLeft = this.dragStartScrollLeft - (event.clientX - this.dragStartX);
+        if (event.pointerId !== this.dragPointerId) return;
+
+        const dragDistance = Math.abs(event.clientX - this.dragStartX);
+        if (!this.isDragging && dragDistance > 5) {
+            // Start dragging only after moving more than 5px
+            this.isDragging = true;
+            this.hasDragged = true;
+        }
+
+        if (this.isDragging) {
+            event.preventDefault();
+            this.$refs.scrollContainer.scrollLeft = this.dragStartScrollLeft - (event.clientX - this.dragStartX);
+        }
     },
 
     onPointerUp(event) {
         if (event.pointerId === this.dragPointerId) {
+            // If we didn't drag, allow click events to fire
+            if (!this.hasDragged) {
+                // Don't prevent click
+            }
             this.isDragging = false;
             this.dragPointerId = null;
+            this.hasDragged = false;
             this.$refs.scrollContainer.releasePointerCapture(event.pointerId);
         }
     },

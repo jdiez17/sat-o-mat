@@ -4,15 +4,23 @@
     <div class="flex flex-wrap items-center gap-2 mb-3">
         <!-- Time range picker - hidden on very narrow widths -->
         <div class="hidden sm:flex items-center gap-2 flex-1 min-w-0">
-            <input type="datetime-local"
-                   :value="startInputValue"
-                   @change="onStartInputChange($event)"
-                   class="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-sm text-zinc-300 focus:border-cyan-500 focus:outline-none min-w-0 flex-1 max-w-[180px]">
+            <div class="flex items-center gap-1">
+                <input type="datetime-local"
+                       step="1"
+                       :value="startInputValue"
+                       @change="onStartInputChange($event)"
+                       class="bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-300 focus:border-cyan-500 focus:outline-none min-w-0 flex-1 max-w-[200px]">
+                <span class="text-xs text-zinc-500 uppercase tracking-wide">utc</span>
+            </div>
             <span class="text-zinc-500 text-xs">to</span>
-            <input type="datetime-local"
-                   :value="endInputValue"
-                   @change="onEndInputChange($event)"
-                   class="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-sm text-zinc-300 focus:border-cyan-500 focus:outline-none min-w-0 flex-1 max-w-[180px]">
+            <div class="flex items-center gap-1">
+                <input type="datetime-local"
+                       step="1"
+                       :value="endInputValue"
+                       @change="onEndInputChange($event)"
+                       class="bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-300 focus:border-cyan-500 focus:outline-none min-w-0 flex-1 max-w-[200px]">
+                <span class="text-xs text-zinc-500 uppercase tracking-wide">utc</span>
+            </div>
         </div>
 
         <!-- Compact controls - always visible -->

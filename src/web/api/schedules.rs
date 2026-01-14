@@ -10,18 +10,11 @@ use utoipa::ToSchema;
 
 use crate::{
     scheduler::approval::ApprovalResult,
-    web::api::error::ApiResult,
-};
-use crate::{
     scheduler::storage::{ScheduleEntry, ScheduleState, StorageError},
-    web::api::error::ApiError,
-};
-use crate::{
+    scheduler::utils::yaml_value_to_str,
     scheduler::Schedule,
-    web::{
-        api::error::ErrorResponse,
-        auth::{require_permission, AppState, AuthenticatedUser},
-    },
+    web::api::error::{ApiError, ApiResult, ErrorResponse},
+    web::auth::{require_permission, AppState, AuthenticatedUser},
 };
 
 use crate::web::config::Permission;
@@ -143,7 +136,7 @@ pub async fn validate_schedule(
                 .into_iter()
                 .filter(|(name, _)| name != "start" && name != "end")
                 .filter_map(|(name, value)| {
-                    schedule_value_to_string(&value)
+                    yaml_value_to_str(&value)
                         .map(|val| ScheduleVariable { name, value: val })
                 })
                 .collect(),
@@ -264,7 +257,7 @@ pub async fn get_schedule(
                             .into_iter()
                             .filter(|(name, _)| name != "start" && name != "end")
                             .filter_map(|(name, value)| {
-                                schedule_value_to_string(&value)
+                                yaml_value_to_str(&value)
                                     .map(|val| ScheduleVariable { name, value: val })
                             })
                             .collect()
@@ -392,17 +385,5 @@ where
             .map(|dt| Some(dt.with_timezone(&Utc)))
             .map_err(serde::de::Error::custom),
         None => Ok(None),
-    }
-}
-
-fn schedule_value_to_string(value: &serde_yaml::Value) -> Option<String> {
-    match value {
-        serde_yaml::Value::Null => Some(String::from("null")),
-        serde_yaml::Value::Bool(b) => Some(b.to_string()),
-        serde_yaml::Value::Number(n) => Some(n.to_string()),
-        serde_yaml::Value::String(s) => Some(s.clone()),
-        serde_yaml::Value::Sequence(seq) => serde_yaml::to_string(seq).ok(),
-        serde_yaml::Value::Mapping(map) => serde_yaml::to_string(map).ok(),
-        serde_yaml::Value::Tagged(tagged) => schedule_value_to_string(&tagged.value),
     }
 }

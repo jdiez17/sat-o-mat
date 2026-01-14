@@ -8,16 +8,12 @@ export default {
     fetchToken: 0,
     fetchTimeout: null,
 
-    // Detail modal state
-    detailOpen: false,
-    detailLoading: false,
-    detailError: null,
-    detailSchedule: null,
-    detailContent: '',
-    detailVariables: [],
-
-    // New schedule modal state
-    editorOpen: false,
+    // Unified modal state
+    modalOpen: false,
+    modalMode: 'new', // 'view', 'edit', 'new'
+    modalLoading: false,
+    modalError: null,
+    modalData: null, // { schedule, content, variables } for view mode
 
     setViewRange(start, end) {
         this.viewRange = { start, end };
@@ -84,7 +80,9 @@ export default {
             if (!res.ok) throw new Error('Failed to approve');
             this.loadedRange = null;
             await this.fetch(true);
-            if (this.detailOpen && this.detailSchedule?.id === id) await this.openDetail(id);
+            if (this.modalOpen && this.modalMode === 'view' && this.modalData?.schedule.id === id) {
+                await this.openDetail(id);
+            }
         } catch (e) {
             alert(e.message);
         }
@@ -98,7 +96,9 @@ export default {
             if (!res.ok) throw new Error('Failed to reject');
             this.loadedRange = null;
             await this.fetch(true);
-            if (this.detailOpen && this.detailSchedule?.id === id) await this.openDetail(id);
+            if (this.modalOpen && this.modalMode === 'view' && this.modalData?.schedule.id === id) {
+                this.closeModal();
+            }
         } catch (e) {
             alert(e.message);
         }
@@ -112,12 +112,15 @@ export default {
             if (!res.ok) throw new Error('Failed to delete');
             this.loadedRange = null;
             await this.fetch(true);
-            if (this.detailOpen && this.detailSchedule?.id === id) this.closeDetail();
+            if (this.modalOpen && this.modalMode === 'view' && this.modalData?.schedule.id === id) {
+                this.closeModal();
+            }
         } catch (e) {
             alert(e.message);
         }
     },
 
+    // Open modal in view mode
     async openDetail(id) {
         const auth = Alpine.store('auth');
         if (!auth.hasKey()) {
@@ -125,41 +128,49 @@ export default {
             return;
         }
 
-        this.detailOpen = true;
-        this.detailLoading = true;
-        this.detailError = null;
-        this.detailSchedule = null;
+        // Clear previous state first
+        this.modalData = null;
+        this.modalError = null;
+        this.modalLoading = true;
+        this.modalMode = 'view';
+        this.modalOpen = true;
 
         try {
             const res = await auth.fetch(`/api/schedules/${id}`);
             if (!res.ok) throw new Error('Failed to load');
             const data = await res.json();
-            this.detailSchedule = data.schedule;
-            this.detailContent = data.content || '';
-            this.detailVariables = data.variables || [];
+            this.modalData = {
+                schedule: data.schedule,
+                content: data.content || '',
+                variables: data.variables || []
+            };
         } catch (e) {
-            this.detailError = e.message;
+            this.modalError = e.message;
         } finally {
-            this.detailLoading = false;
+            this.modalLoading = false;
         }
     },
 
-    closeDetail() {
-        this.detailOpen = false;
-        this.detailSchedule = null;
-    },
-
+    // Open modal in new/edit mode
     openEditor() {
         const auth = Alpine.store('auth');
         if (!auth.hasKey()) {
             auth.showModal();
             return;
         }
-        this.editorOpen = true;
+
+        // Clear previous state
+        this.modalData = null;
+        this.modalError = null;
+        this.modalLoading = false;
+        this.modalMode = 'new';
+        this.modalOpen = true;
     },
 
-    closeEditor() {
-        this.editorOpen = false;
+    closeModal() {
+        this.modalOpen = false;
+        // Don't clear data immediately - wait for transition to finish
+        // Data will be cleared when opening next time
     },
 
     formatDate(value, options = {}) {

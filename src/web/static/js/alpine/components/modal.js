@@ -1,13 +1,22 @@
-// Schedule Editor component
+// Unified Schedule Modal component (view/edit/new)
 export default () => ({
-    variables: {},
+    yamlEditor: null,
+    yamlExpanded: true,
     variablesExpanded: true,
+    variables: {},
     variablesStatus: 'Awaiting file...',
     validationState: 'idle',
     validationMessage: '',
     submitting: false,
-    stepsEditor: null,
     validationTimer: null,
+
+    get store() {
+        return Alpine.store('schedules');
+    },
+
+    get isViewMode() {
+        return this.store.modalMode === 'view';
+    },
 
     get validationColor() {
         const colors = { success: 'text-green-400', error: 'text-rose-400', pending: 'text-amber-400' };
@@ -33,29 +42,127 @@ export default () => ({
     },
 
     init() {
-        this.$nextTick(() => {
-            this.initCodeMirror();
-            this.loadTemplate();
+        this.$watch('yamlExpanded', (expanded) => {
+            if (expanded && !this.yamlEditor && this.store.modalOpen) {
+                this.$nextTick(() => this.initYamlEditor());
+            }
+        });
+
+        this.$watch('$store.schedules.modalData', (data) => {
+            if (data && this.isViewMode && this.yamlExpanded && !this.yamlEditor) {
+                this.$nextTick(() => this.initYamlEditor());
+            }
+        });
+
+        this.$watch('$store.schedules.modalOpen', (isOpen) => {
+            if (isOpen) {
+                this.$nextTick(() => this.setupModal());
+            } else {
+                this.cleanup();
+            }
+        });
+
+        if (this.store.modalOpen) {
+            this.$nextTick(() => this.setupModal());
+        }
+    },
+
+    setupModal() {
+        if (this.isViewMode) {
+            this.yamlExpanded = true;
+            this.variablesExpanded = false;
+            if (this.store.modalData?.content) {
+                this.$nextTick(() => this.initYamlEditor());
+            }
+        } else {
+            this.yamlExpanded = true;
+            this.variablesExpanded = true;
+            if (this.store.modalMode === 'new') {
+                this.loadTemplate();
+            }
+            this.$nextTick(() => this.initYamlEditor());
+        }
+    },
+
+    initYamlEditor() {
+        if (!this.store.modalOpen || this.store.modalLoading || !window.CodeMirror) return;
+
+        const container = this.$refs.yamlEditor;
+        if (!container) return;
+
+        if (this.yamlEditor) {
+            this.yamlEditor.destroy();
+            this.yamlEditor = null;
+        }
+        container.innerHTML = '';
+
+        const content = this.isViewMode
+            ? this.extractSteps(this.store.modalData.content)
+            : '';
+
+        const extensions = [
+            window.CodeMirror.basicSetup,
+            window.CodeMirror.yaml(),
+            window.CodeMirror.oneDark,
+        ];
+
+        if (this.isViewMode) {
+            extensions.push(
+                window.CodeMirror.EditorView.editable.of(false),
+                window.CodeMirror.EditorView.theme({
+                    "&": { fontSize: "13px" },
+                    ".cm-scroller": { overflow: "auto" },
+                    ".cm-content": { padding: "8px 0" }
+                })
+            );
+        } else {
+            extensions.push(
+                window.CodeMirror.EditorView.updateListener.of((update) => {
+                    if (update.docChanged) this.scheduleValidation();
+                })
+            );
+        }
+
+        this.yamlEditor = new window.CodeMirror.EditorView({
+            doc: content || '',
+            extensions,
+            parent: container,
         });
     },
 
-    initCodeMirror() {
-        if (!window.CodeMirror) return;
-        const container = this.$refs.stepsEditor;
-        if (!container) return;
+    extractSteps(fullYaml) {
+        try {
+            const doc = window.jsyaml.load(fullYaml);
+            return doc?.steps ? window.jsyaml.dump(doc.steps, { lineWidth: 100 }) : '[]';
+        } catch {
+            return fullYaml;
+        }
+    },
 
-        this.stepsEditor = new window.CodeMirror.EditorView({
-            doc: '',
-            extensions: [
-                window.CodeMirror.basicSetup,
-                window.CodeMirror.yaml(),
-                window.CodeMirror.oneDark,
-                window.CodeMirror.EditorView.updateListener.of((update) => {
-                    if (update.docChanged) this.scheduleValidation();
-                }),
-            ],
-            parent: container,
-        });
+    cleanup() {
+        if (this.yamlEditor) {
+            this.yamlEditor.destroy();
+            this.yamlEditor = null;
+        }
+        this.variables = {};
+        this.variablesStatus = 'Awaiting file...';
+        this.validationState = 'idle';
+        this.validationMessage = '';
+        this.submitting = false;
+        this.yamlExpanded = true;
+        this.variablesExpanded = true;
+    },
+
+    showVariables() {
+        return this.isViewMode
+            ? this.store.modalData?.variables?.length > 0
+            : Object.keys(this.variables).length > 0;
+    },
+
+    getVariableCount() {
+        return this.isViewMode
+            ? this.store.modalData?.variables?.length || 0
+            : Object.keys(this.variables).length;
     },
 
     loadTemplate() {
@@ -77,7 +184,7 @@ export default () => ({
             const doc = window.jsyaml.load(await file.text());
             this.populateFromDocument(doc);
             this.variablesStatus = file.name;
-        } catch (e) {
+        } catch {
             this.showValidation('error', 'Failed to parse file.');
         }
     },
@@ -90,17 +197,22 @@ export default () => ({
         if (!variables.end) variables.end = new Date(new Date(variables.start).getTime() + 900000).toISOString();
         this.variables = variables;
 
-        if (this.stepsEditor) {
+        if (this.yamlEditor) {
             const yaml = window.jsyaml.dump(doc.steps || [], { lineWidth: 100 });
-            this.stepsEditor.dispatch({
-                changes: { from: 0, to: this.stepsEditor.state.doc.length, insert: yaml.trim() || '- {}' },
+            this.yamlEditor.dispatch({
+                changes: { from: 0, to: this.yamlEditor.state.doc.length, insert: yaml.trim() || '- {}' },
             });
         }
         this.scheduleValidation();
     },
 
-    isDatetimeVar(name) { return name === 'start' || name === 'end'; },
-    isMultilineVar(name) { return typeof this.variables[name] === 'string' && this.variables[name].includes('\n'); },
+    isDatetimeVar(name) {
+        return name === 'start' || name === 'end';
+    },
+
+    isMultilineVar(name) {
+        return typeof this.variables[name] === 'string' && this.variables[name].includes('\n');
+    },
 
     getVariableInputValue(name) {
         const value = this.variables[name];
@@ -108,11 +220,9 @@ export default () => ({
     },
 
     onVariableInput(name, event) {
-        if (this.isDatetimeVar(name)) {
-            this.variables[name] = this.localInputToIso(event.target.value) || '';
-        } else {
-            this.variables[name] = event.target.value;
-        }
+        this.variables[name] = this.isDatetimeVar(name)
+            ? this.localInputToIso(event.target.value) || ''
+            : event.target.value;
         this.scheduleValidation();
     },
 
@@ -123,15 +233,13 @@ export default () => ({
         this.scheduleValidation();
     },
 
-    toggleVariables() { this.variablesExpanded = !this.variablesExpanded; },
-
     scheduleValidation() {
         clearTimeout(this.validationTimer);
         this.validationTimer = setTimeout(() => this.validate(), 400);
     },
 
     buildScheduleYaml() {
-        const stepsText = this.stepsEditor?.state.doc.toString() || '';
+        const stepsText = this.yamlEditor?.state.doc.toString() || '';
         let stepsAst = [];
         if (stepsText.trim()) {
             const parsed = window.jsyaml.load(stepsText);
@@ -187,11 +295,18 @@ export default () => ({
 
     async submit() {
         const auth = Alpine.store('auth');
-        if (!auth.hasKey()) { auth.showModal(); return; }
+        if (!auth.hasKey()) {
+            auth.showModal();
+            return;
+        }
 
         let yaml;
-        try { yaml = this.buildScheduleYaml(); }
-        catch (e) { this.showValidation('error', e.message); return; }
+        try {
+            yaml = this.buildScheduleYaml();
+        } catch (e) {
+            this.showValidation('error', e.message);
+            return;
+        }
 
         this.submitting = true;
         try {
@@ -202,9 +317,9 @@ export default () => ({
             });
             if (!res.ok) throw new Error('Submit failed');
 
-            Alpine.store('schedules').loadedRange = null;
-            await Alpine.store('schedules').fetch(true);
-            Alpine.store('schedules').closeEditor();
+            this.store.loadedRange = null;
+            await this.store.fetch(true);
+            this.store.closeModal();
         } catch (e) {
             this.showValidation('error', e.message);
         } finally {
@@ -212,11 +327,25 @@ export default () => ({
         }
     },
 
+    async approve() {
+        await this.store.approve(this.store.modalData.schedule.id);
+    },
+
+    async reject() {
+        await this.store.reject(this.store.modalData.schedule.id);
+    },
+
+    async confirmDelete() {
+        if (confirm('Delete this schedule?')) {
+            await this.store.remove(this.store.modalData.schedule.id);
+        }
+    },
+
     isoToLocalInput(value) {
         const d = new Date(value);
         if (isNaN(d.getTime())) return '';
         const pad = (n) => n.toString().padStart(2, '0');
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
     },
 
     localInputToIso(value) {

@@ -1,0 +1,249 @@
+<!-- Unified Schedule Modal (View/Edit/New) -->
+<div x-cloak
+     x-show="$store.schedules.modalOpen"
+     x-transition:enter="transition ease-out duration-200"
+     x-transition:enter-start="opacity-0"
+     x-transition:enter-end="opacity-100"
+     x-transition:leave="transition ease-in duration-150"
+     x-transition:leave-start="opacity-100"
+     x-transition:leave-end="opacity-0"
+     class="fixed inset-0 z-50"
+     @keydown.escape.window="$store.schedules.closeModal()"
+     x-data="scheduleModal()"
+     x-init="init()">
+    <div class="absolute inset-0 bg-black/60" @click="$store.schedules.closeModal()"></div>
+    <div class="absolute inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[900px] md:h-[85vh] bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col">
+
+        <!-- Loading state -->
+        <template x-if="$store.schedules.modalLoading">
+            <div class="p-6 text-center text-zinc-500">Loading...</div>
+        </template>
+
+        <!-- Error state -->
+        <template x-if="$store.schedules.modalError">
+            <div class="p-6 text-center text-red-400" x-text="$store.schedules.modalError"></div>
+        </template>
+
+        <!-- Content -->
+        <template x-if="!$store.schedules.modalLoading && !$store.schedules.modalError">
+            <div class="flex flex-col min-h-0 h-full">
+                <!-- Header -->
+                <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800 flex-shrink-0">
+                    <div class="flex items-center gap-3">
+                        <h2 class="text-lg font-medium" x-text="$store.schedules.modalMode === 'new' ? 'New Schedule' : 'Schedule Details'"></h2>
+                        <template x-if="$store.schedules.modalMode === 'view' && $store.schedules.modalData">
+                            <span x-show="$store.schedules.modalData.schedule.status === 'approved'"
+                                  class="px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-500/20 text-cyan-400">Active</span>
+                            <span x-show="$store.schedules.modalData.schedule.status !== 'approved'"
+                                  class="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400">Pending</span>
+                        </template>
+                    </div>
+                    <button @click="$store.schedules.closeModal()" class="p-2 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Body -->
+                <div class="flex-1 min-h-0 overflow-auto p-4 space-y-4">
+                    <!-- Schedule Info (view mode only) -->
+                    <template x-if="$store.schedules.modalMode === 'view' && $store.schedules.modalData">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div>
+                                <div class="text-xs text-zinc-500 uppercase tracking-wide mb-1">ID</div>
+                                <div class="font-mono text-sm text-zinc-300 break-all" x-text="$store.schedules.modalData.schedule.id"></div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-zinc-500 uppercase tracking-wide mb-1">Start (UTC)</div>
+                                <div class="text-sm text-zinc-300" x-text="$store.schedules.formatDate($store.schedules.modalData.schedule.start)"></div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-zinc-500 uppercase tracking-wide mb-1">End (UTC)</div>
+                                <div class="text-sm text-zinc-300" x-text="$store.schedules.formatDate($store.schedules.modalData.schedule.end)"></div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-zinc-500 uppercase tracking-wide mb-1">Duration</div>
+                                <div class="text-sm text-zinc-300" x-text="$store.schedules.formatDuration($store.schedules.modalData.schedule.start, $store.schedules.modalData.schedule.end)"></div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- File Upload (new/edit mode) -->
+                    <template x-if="$store.schedules.modalMode !== 'view'">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="text-sm font-medium text-zinc-300">Upload Schedule</label>
+                                <button @click="loadTemplate()"
+                                        class="px-3 py-1.5 text-xs border border-zinc-700 rounded hover:border-zinc-600 transition-colors">
+                                    Load template
+                                </button>
+                            </div>
+                            <input type="file"
+                                   accept=".yaml,.yml"
+                                   @change="handleFileUpload($event)"
+                                   class="w-full text-sm text-zinc-300 bg-zinc-950 border border-zinc-800 rounded px-3 py-2 file:mr-4 file:py-2 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-cyan-600 file:text-white hover:file:bg-cyan-500">
+                            <p class="text-xs text-zinc-500 mt-1">Upload a YAML file with <code class="font-mono">variables</code> and <code class="font-mono">steps</code>.</p>
+                        </div>
+                    </template>
+
+                    <!-- Variables Section -->
+                    <div x-show="showVariables()">
+                        <button @click="variablesExpanded = !variablesExpanded"
+                                class="w-full flex items-center justify-between mb-2 group">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-4 h-4 text-zinc-400 transition-transform duration-200"
+                                     :class="variablesExpanded ? 'rotate-90' : ''"
+                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                </svg>
+                                <h3 class="text-sm font-medium text-zinc-300">Variables</h3>
+                                <p class="text-xs text-zinc-500" x-text="$store.schedules.modalMode === 'view' ? 'Resolved values used in this schedule' : 'Edit schedule variables'"></p>
+                            </div>
+                            <span class="text-xs text-zinc-500" x-text="getVariableCount() + ' defined'"></span>
+                        </button>
+                        <div x-show="variablesExpanded"
+                             x-transition:enter="transition ease-out duration-200"
+                             x-transition:enter-start="opacity-0 -translate-y-2"
+                             x-transition:enter-end="opacity-100 translate-y-0"
+                             class="grid gap-3 sm:grid-cols-2 bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                            <!-- View mode: read-only variables -->
+                            <template x-if="$store.schedules.modalMode === 'view' && $store.schedules.modalData">
+                                <template x-for="variable in $store.schedules.modalData.variables" :key="variable.name">
+                                    <div class="border border-zinc-800 rounded-lg p-3 bg-zinc-900">
+                                        <div class="text-xs uppercase tracking-wide text-zinc-500" x-text="variable.name"></div>
+                                        <div class="mt-1 font-mono text-sm text-zinc-200 break-all" x-text="variable.value"></div>
+                                    </div>
+                                </template>
+                            </template>
+                            <!-- Edit/new mode: editable variables -->
+                            <template x-if="$store.schedules.modalMode !== 'view'">
+                                <template x-for="[name, value] in sortedVariables" :key="name">
+                                    <div class="border border-zinc-800 rounded-lg p-3 bg-zinc-900">
+                                        <label class="text-xs uppercase tracking-wide text-zinc-500 mb-1.5 block" x-text="name"></label>
+
+                                        <!-- Datetime input -->
+                                        <template x-if="isDatetimeVar(name)">
+                                            <div>
+                                                <div class="flex items-center gap-2">
+                                                    <input type="datetime-local"
+                                                           step="1"
+                                                           :value="getVariableInputValue(name)"
+                                                           @input="onVariableInput(name, $event)"
+                                                           class="flex-1 px-3 py-2 text-sm rounded border border-zinc-700 bg-zinc-950 text-zinc-100 focus:border-cyan-500 focus:outline-none">
+                                                    <span class="text-xs text-zinc-500 uppercase tracking-wide">utc</span>
+                                                </div>
+                                                <div class="flex gap-2 mt-1.5 text-xs">
+                                                    <button type="button" @click="applyPreset(name, 0)"
+                                                            class="px-2 py-0.5 border border-zinc-800 rounded hover:border-cyan-500 hover:text-cyan-300 transition-colors">
+                                                        Now
+                                                    </button>
+                                                    <button type="button" @click="applyPreset(name, 5)"
+                                                            class="px-2 py-0.5 border border-zinc-800 rounded hover:border-cyan-500 hover:text-cyan-300 transition-colors">
+                                                        +5m
+                                                    </button>
+                                                    <button type="button" @click="applyPreset(name, 10)"
+                                                            class="px-2 py-0.5 border border-zinc-800 rounded hover:border-cyan-500 hover:text-cyan-300 transition-colors">
+                                                        +10m
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </template>
+
+                                        <!-- Textarea for multiline -->
+                                        <template x-if="!isDatetimeVar(name) && isMultilineVar(name)">
+                                            <textarea :value="getVariableInputValue(name)"
+                                                      @input="onVariableInput(name, $event)"
+                                                      rows="3"
+                                                      class="w-full px-3 py-2 text-sm rounded border border-zinc-700 bg-zinc-950 text-zinc-100 focus:border-cyan-500 focus:outline-none resize-y"></textarea>
+                                        </template>
+
+                                        <!-- Regular text input -->
+                                        <template x-if="!isDatetimeVar(name) && !isMultilineVar(name)">
+                                            <input type="text"
+                                                   :value="getVariableInputValue(name)"
+                                                   @input="onVariableInput(name, $event)"
+                                                   class="w-full px-3 py-2 text-sm rounded border border-zinc-700 bg-zinc-950 text-zinc-100 focus:border-cyan-500 focus:outline-none">
+                                        </template>
+                                    </div>
+                                </template>
+                            </template>
+
+                            <!-- Empty state -->
+                            <template x-if="getVariableCount() === 0">
+                                <div class="text-sm text-zinc-500 col-span-full">No custom variables.</div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- YAML Section -->
+                    <div>
+                        <button @click="yamlExpanded = !yamlExpanded"
+                                class="w-full flex items-center justify-between mb-2 group">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-4 h-4 text-zinc-400 transition-transform duration-200"
+                                     :class="yamlExpanded ? 'rotate-90' : ''"
+                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                </svg>
+                                <label class="text-sm font-medium text-zinc-300" x-text="$store.schedules.modalMode === 'view' ? 'Schedule YAML' : 'Steps'"></label>
+                                <span class="text-xs text-zinc-500" x-text="$store.schedules.modalMode === 'view' ? 'Full schedule content' : 'Execution steps in YAML format'"></span>
+                            </div>
+                        </button>
+                        <div x-show="yamlExpanded"
+                             x-transition:enter="transition ease-out duration-200"
+                             x-transition:enter-start="opacity-0 -translate-y-2"
+                             x-transition:enter-end="opacity-100 translate-y-0"
+                             class="bg-zinc-950 rounded border border-zinc-800 overflow-hidden">
+                            <div x-ref="yamlEditor" class="min-h-[300px]"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="flex items-center justify-between px-4 py-3 border-t border-zinc-800 flex-shrink-0">
+                    <!-- View mode actions -->
+                    <template x-if="$store.schedules.modalMode === 'view' && $store.schedules.modalData">
+                        <div class="flex items-center justify-between w-full">
+                            <button @click="confirmDelete()"
+                                    class="px-3 py-1.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors">
+                                Delete Schedule
+                            </button>
+                            <div x-show="$store.schedules.modalData.schedule.status === 'pending'" class="flex items-center gap-2">
+                                <button @click="reject()"
+                                        class="px-4 py-1.5 text-sm text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors">
+                                    Reject
+                                </button>
+                                <button @click="approve()"
+                                        class="px-4 py-1.5 text-sm bg-cyan-600 hover:bg-cyan-500 text-white rounded transition-colors">
+                                    Approve
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- New/edit mode actions -->
+                    <template x-if="$store.schedules.modalMode !== 'view'">
+                        <div class="flex items-center justify-between w-full">
+                            <div class="text-sm" :class="validationColor">
+                                <span x-show="validationPrefix" x-text="validationPrefix + ' '"></span>
+                                <span x-text="validationMessage"></span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button @click="$store.schedules.closeModal()"
+                                        class="px-4 py-1.5 text-sm text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors">
+                                    Cancel
+                                </button>
+                                <button @click="submit()"
+                                        :disabled="!canSubmit"
+                                        class="px-4 py-1.5 text-sm bg-cyan-600 hover:bg-cyan-500 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <span x-text="submitting ? 'Submitting...' : 'Submit Schedule'"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </template>
+    </div>
+</div>
