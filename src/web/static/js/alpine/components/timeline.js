@@ -200,6 +200,12 @@ export default () => ({
 
     onPointerDown(event) {
         if (event.button !== 0 && event.pointerType === 'mouse') return;
+
+        // Don't capture pointer if clicking on a schedule block (let click event fire)
+        if (event.target.closest('.cursor-pointer')) {
+            return;
+        }
+
         this.pointerInside = true;
         this.updatePointerPosition(event);
         this.dragPointerId = event.pointerId;

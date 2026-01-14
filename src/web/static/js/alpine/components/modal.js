@@ -70,7 +70,7 @@ export default () => ({
     setupModal() {
         if (this.isViewMode) {
             this.yamlExpanded = true;
-            this.variablesExpanded = false;
+            this.variablesExpanded = true;
             if (this.store.modalData?.content) {
                 this.$nextTick(() => this.initYamlEditor());
             }

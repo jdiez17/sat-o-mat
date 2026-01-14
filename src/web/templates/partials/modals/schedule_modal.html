@@ -15,18 +15,13 @@
     <div class="absolute inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[900px] md:h-[85vh] bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col">
 
         <!-- Loading state -->
-        <template x-if="$store.schedules.modalLoading">
-            <div class="p-6 text-center text-zinc-500">Loading...</div>
-        </template>
+        <div x-show="$store.schedules.modalLoading" class="p-6 text-center text-zinc-500">Loading...</div>
 
         <!-- Error state -->
-        <template x-if="$store.schedules.modalError">
-            <div class="p-6 text-center text-red-400" x-text="$store.schedules.modalError"></div>
-        </template>
+        <div x-show="$store.schedules.modalError" class="p-6 text-center text-red-400" x-text="$store.schedules.modalError"></div>
 
         <!-- Content -->
-        <template x-if="!$store.schedules.modalLoading && !$store.schedules.modalError">
-            <div class="flex flex-col min-h-0 h-full">
+        <div x-show="!$store.schedules.modalLoading && !$store.schedules.modalError" class="flex flex-col min-h-0 h-full">
                 <!-- Header -->
                 <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800 flex-shrink-0">
                     <div class="flex items-center gap-3">
@@ -243,7 +238,6 @@
                         </div>
                     </template>
                 </div>
-            </div>
-        </template>
+        </div>
     </div>
 </div>
