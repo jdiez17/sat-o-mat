@@ -20,6 +20,19 @@ pub struct Config {
     pub schedules: SchedulesConfig,
     pub approval: ApprovalConfig,
     pub api_keys: Vec<ApiKey>,
+    #[serde(default)]
+    pub predict: Option<PredictConfig>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct PredictConfig {
+    pub tle_folder: PathBuf,
+    #[serde(default = "default_min_elevation")]
+    pub default_min_elevation: f64,
+}
+
+fn default_min_elevation() -> f64 {
+    0.0
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -51,6 +64,7 @@ pub struct ApiKey {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct StationConfig {
+    #[allow(dead_code)]
     pub name: Option<String>,
     pub coordinates: String,
     #[serde(default)]
@@ -63,6 +77,7 @@ pub enum Permission {
     SubmitSchedule,
     ListSchedules,
     ApproveSchedule,
+    ListPredictions,
 }
 
 impl Config {

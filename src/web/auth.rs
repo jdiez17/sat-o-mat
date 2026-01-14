@@ -7,9 +7,9 @@ use axum::{
 use serde_json::json;
 use std::collections::HashSet;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 
-use crate::{scheduler::Storage, tracker::Tracker};
+use crate::{predict::TleLoader, scheduler::Storage, tracker::Tracker};
 
 use super::config::{Config, Permission};
 
@@ -31,6 +31,7 @@ pub struct AppState {
     pub config: Arc<Config>,
     pub storage: Arc<Storage>,
     pub tracker: Arc<Mutex<Tracker>>,
+    pub tle_loader: Option<Arc<RwLock<TleLoader>>>,
 }
 
 pub enum AuthError {

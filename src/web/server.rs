@@ -1,15 +1,17 @@
 use axum::{routing::delete, routing::get, routing::post, Router};
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
+use crate::predict::TleLoader;
 use crate::scheduler::Storage;
 use crate::tracker::{GroundStation, Tracker};
 
+use super::api::predict as predict_handlers;
 use super::api::schedules as schedule_handlers;
 use super::api::tracker as tracker_handlers;
 use super::api_doc::ApiDoc;
@@ -27,10 +29,22 @@ pub async fn run_server(config: Config) -> std::io::Result<()> {
     .unwrap_or_default();
     let tracker = Tracker::new(station);
 
+    // Initialize TLE loader if predict config is present
+    let tle_loader = if let Some(ref predict_config) = config.predict {
+        let mut loader = TleLoader::new(predict_config.tle_folder.clone());
+        if let Err(e) = loader.load_all() {
+            log::warn!("Failed to initialize TLE loader: {}", e);
+        }
+        Some(Arc::new(RwLock::new(loader)))
+    } else {
+        None
+    };
+
     let state = AppState {
         config: Arc::new(config),
         storage: Arc::new(storage),
         tracker: Arc::new(Mutex::new(tracker)),
+        tle_loader,
     };
 
     let cors = CorsLayer::new()
@@ -77,6 +91,8 @@ pub async fn run_server(config: Config) -> std::io::Result<()> {
             "/api/tracker/status/trajectory",
             get(tracker_handlers::status_trajectory),
         )
+        // Predict API endpoints
+        .route("/api/predict", get(predict_handlers::list_predictions))
         // Static files
         .nest_service("/static", ServeDir::new("src/web/static"))
         // OpenAPI / Swagger
