@@ -8,6 +8,7 @@ use crate::web::api::error::ErrorResponse;
 use super::api::schedules::{
     ListSchedulesQuery, ScheduleDetailResponse, ScheduleResponse, SubmitScheduleResponse,
 };
+use super::api::tracker::TrackerRequest;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -18,6 +19,11 @@ use super::api::schedules::{
         crate::web::api::schedules::delete_schedule,
         crate::web::api::schedules::approve_schedule,
         crate::web::api::schedules::reject_schedule,
+        crate::web::api::tracker::run,
+        crate::web::api::tracker::stop,
+        crate::web::api::tracker::status_mode,
+        crate::web::api::tracker::status_sample,
+        crate::web::api::tracker::status_trajectory,
     ),
     components(
         schemas(
@@ -29,6 +35,9 @@ use super::api::schedules::{
             crate::scheduler::storage::ScheduleEntry,
             crate::scheduler::storage::ScheduleState,
             crate::scheduler::approval::ApprovalResult,
+            TrackerRequest,
+            crate::tracker::TrackerMode,
+            crate::tracker::TrackerSample,
         )
     ),
     modifiers(&SecurityAddon),
@@ -38,7 +47,8 @@ use super::api::schedules::{
         version = "0.1.0"
     ),
     tags(
-        (name = "schedules", description = "Schedule management")
+        (name = "schedules", description = "Schedule management"),
+        (name = "tracker", description = "Tracker control")
     )
 )]
 pub struct ApiDoc;

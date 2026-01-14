@@ -1,35 +1,16 @@
-#![allow(dead_code)]
-use serde::Deserialize;
+mod error;
+mod ground_station;
+mod parsing;
+mod sample;
+mod tracker;
+mod trajectory;
+mod types;
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
-pub struct RadioConfig {
-    pub device: String,
-    pub frequencies: Frequencies,
-}
+pub(crate) const SPEED_OF_LIGHT_KM_S: f64 = 299_792.458;
+pub const EARTH_ROTATION_RAD_S: f64 = 7.292_115e-5;
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
-pub struct Frequencies {
-    pub uplink: String,
-    pub downlink: String,
-}
-
-#[derive(Debug, Clone, Deserialize, PartialEq)]
-#[serde(tag = "action", rename_all = "snake_case")]
-pub enum Command {
-    Initialize {
-        tle: String,
-        rotator: String,
-        radio: RadioConfig,
-    },
-    RotatorPark {
-        rotator: String,
-    },
-    Stop,
-}
-
-pub struct Tracker {}
-impl Tracker {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
+pub use error::TrackerError;
+pub use ground_station::GroundStation;
+pub use sample::TrackerSample;
+pub use tracker::{FrequencyPlan, Tracker, TrackerMode, TrackerStatus};
+pub use types::{Command, Frequencies, RadioConfig};

@@ -11,7 +11,7 @@ variables:
 steps:
   - time: T+10 seconds
     tracker:
-      action: initialize
+      action: run
       tle: $tle
       rotator: $rotator
       radio:

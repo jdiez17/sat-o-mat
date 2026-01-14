@@ -9,10 +9,11 @@ use scheduler::{Command, Schedule};
 use std::fs;
 use std::path::PathBuf;
 use std::process::ExitCode;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 use crate::executor::Executor;
-use crate::tracker::Tracker;
+use crate::tracker::{GroundStation, Tracker};
 
 #[derive(Parser)]
 #[command(name = "sat-o-mat")]
@@ -102,7 +103,7 @@ fn run(path: &str) -> ExitCode {
     println!("Starting schedule at {}", start_time);
 
     let executor = Executor::new();
-    let tracker = Arc::new(Mutex::new(Tracker::new()));
+    let tracker = Arc::new(Mutex::new(Tracker::new(GroundStation::default())));
 
     let _path = PathBuf::from("/tmp/foo");
     //let schedules = get_schedules(path, ScheduleState::AwaitingApproval).unwrap();
@@ -121,9 +122,10 @@ fn run(path: &str) -> ExitCode {
 
 fn command_name(cmd: &Command) -> &'static str {
     match cmd {
-        Command::Tracker(tracker::Command::Initialize { .. }) => "tracker.initialize",
         Command::Tracker(tracker::Command::RotatorPark { .. }) => "tracker.rotator_park",
         Command::Tracker(tracker::Command::Stop) => "tracker.stop",
+        Command::Tracker(tracker::Command::Run { .. }) => "tracker.run",
+        Command::Tracker(tracker::Command::RunFixedDuration { .. }) => "tracker.run_fixed_duration",
         Command::Executor(executor::Command::RunShell { .. }) => "executor.run_shell",
         Command::Executor(executor::Command::Stop) => "executor.stop",
         Command::Radio(radio::Command::Run { .. }) => "radio.run",

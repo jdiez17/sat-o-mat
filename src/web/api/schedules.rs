@@ -73,7 +73,8 @@ pub async fn submit_schedule(
     let schedule = Schedule::from_str(&body).map_err(|e| ApiError::Validation(e.to_string()))?;
 
     let storage = &state.storage;
-    let (entry, approval_result) = storage.submit_schedule(&schedule, &body, state.config.approval.mode)?;
+    let (entry, approval_result) =
+        storage.submit_schedule(&schedule, &body, state.config.approval.mode)?;
 
     let approval_status = match approval_result {
         ApprovalResult::Approved => "approved",
@@ -136,8 +137,7 @@ pub async fn validate_schedule(
                 .into_iter()
                 .filter(|(name, _)| name != "start" && name != "end")
                 .filter_map(|(name, value)| {
-                    yaml_value_to_str(&value)
-                        .map(|val| ScheduleVariable { name, value: val })
+                    yaml_value_to_str(&value).map(|val| ScheduleVariable { name, value: val })
                 })
                 .collect(),
         })),

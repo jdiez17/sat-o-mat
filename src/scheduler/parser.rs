@@ -235,15 +235,15 @@ mod tests {
 
         assert_eq!(schedule.steps.len(), 5);
 
-        // Step 0: tracker.initialize with relative time (T+10 seconds)
+        // Step 0: tracker.run with relative time (T+10 seconds)
         assert_eq!(
             schedule.steps[0].time,
             Some(TimeExpr::Relative(Duration::seconds(10)))
         );
         assert!(matches!(
             &schedule.steps[0].command,
-            Command::Tracker(tracker::Command::Initialize { rotator, tle, .. })
-            if rotator == "uhf1" && tle.contains("ISS (ZARYA)")
+            Command::Tracker(tracker::Command::Run { rotator, tle, .. })
+            if rotator.as_deref() == Some("uhf1") && tle.contains("ISS (ZARYA)")
         ));
 
         // Step 1: executor.run_shell (immediate)

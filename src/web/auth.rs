@@ -7,8 +7,9 @@ use axum::{
 use serde_json::json;
 use std::collections::HashSet;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
-use crate::scheduler::Storage;
+use crate::{scheduler::Storage, tracker::Tracker};
 
 use super::config::{Config, Permission};
 
@@ -29,6 +30,7 @@ impl AuthenticatedUser {
 pub struct AppState {
     pub config: Arc<Config>,
     pub storage: Arc<Storage>,
+    pub tracker: Arc<Mutex<Tracker>>,
 }
 
 pub enum AuthError {

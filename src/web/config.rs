@@ -15,6 +15,7 @@ pub enum ConfigError {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
+    pub station: StationConfig,
     pub web: WebConfig,
     pub schedules: SchedulesConfig,
     pub approval: ApprovalConfig,
@@ -46,6 +47,14 @@ pub struct ApiKey {
     pub key: String,
     pub name: String,
     pub permissions: HashSet<Permission>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct StationConfig {
+    pub name: Option<String>,
+    pub coordinates: String,
+    #[serde(default)]
+    pub altitude_m: f64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]

@@ -10,6 +10,10 @@ radios:
     addr: "soapysdr://..."
     rigctl: true
 
+station:
+  name: Test-O-Mat Station
+  coordinates: 52.51514, 13.32373
+
 # Web API configuration
 web:
   bind: "0.0.0.0:8080"
