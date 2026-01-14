@@ -41,3 +41,4 @@ api_keys:
       - submit_schedule
       - list_schedules
       - approve_schedule
+      - list_predictions
