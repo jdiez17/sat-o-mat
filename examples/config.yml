@@ -14,6 +14,10 @@ station:
   name: Test-O-Mat Station
   coordinates: 52.51514, 13.32373
 
+predict:
+  tle_folder: examples/tle/
+
+
 # Web API configuration
 web:
   bind: "0.0.0.0:8080"
