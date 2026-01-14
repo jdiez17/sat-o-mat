@@ -3,9 +3,10 @@ use utoipa::{
     Modify, OpenApi,
 };
 
+use crate::web::api::error::ErrorResponse;
+
 use super::api::schedules::{
-    ErrorResponse, ListSchedulesQuery, ScheduleDetailResponse, ScheduleResponse,
-    SubmitScheduleResponse,
+    ListSchedulesQuery, ScheduleDetailResponse, ScheduleResponse, SubmitScheduleResponse,
 };
 
 #[derive(OpenApi)]
