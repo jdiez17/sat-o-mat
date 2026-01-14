@@ -26,6 +26,7 @@ impl From<StorageError> for ApiError {
     fn from(e: StorageError) -> Self {
         match e {
             StorageError::NotFound(_) => ApiError::NotFound,
+            StorageError::Overlap => ApiError::Conflict("schedule_overlap"),
             _ => ApiError::Storage(e),
         }
     }

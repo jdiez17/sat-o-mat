@@ -4,7 +4,10 @@ use std::path::PathBuf;
 use thiserror::Error;
 use utoipa::ToSchema;
 
-use crate::scheduler::Schedule;
+use crate::scheduler::{
+    approval::{evaluate_approval, ApprovalMode, ApprovalResult},
+    Schedule,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -120,18 +123,34 @@ impl Storage {
         Ok((entry, content))
     }
 
-    pub fn save_schedule(
+    pub fn submit_schedule(
         &self,
-        state: ScheduleState,
-        id: &str,
+        schedule: &Schedule,
         content: &str,
-    ) -> Result<(), StorageError> {
-        let folder = self.state_path(state);
-        std::fs::create_dir_all(&folder)?;
+        approval_mode: ApprovalMode,
+    ) -> Result<(ScheduleEntry, ApprovalResult), StorageError> {
+        if self.check_overlap(schedule.start, schedule.end, None)? {
+            return Err(StorageError::Overlap);
+        }
 
-        let path = self.schedule_path(state, id);
-        std::fs::write(path, content)?;
-        Ok(())
+        let approval_result = evaluate_approval(approval_mode);
+        let target_state = if approval_result.is_approved() {
+            ScheduleState::Active
+        } else {
+            ScheduleState::AwaitingApproval
+        };
+
+        let id = self.generate_id(schedule.start);
+        self.save_schedule(target_state, &id, content)?;
+
+        let entry = ScheduleEntry {
+            id,
+            state: target_state,
+            start: schedule.start,
+            end: schedule.end,
+        };
+
+        Ok((entry, approval_result))
     }
 
     pub fn delete_schedule(&self, state: ScheduleState, id: &str) -> Result<(), StorageError> {
@@ -145,26 +164,38 @@ impl Storage {
         Ok(())
     }
 
-    pub fn move_schedule(
-        &self,
-        from_state: ScheduleState,
-        to_state: ScheduleState,
-        id: &str,
-    ) -> Result<(), StorageError> {
-        let from_path = self.schedule_path(from_state, id);
-        let to_folder = self.state_path(to_state);
-        let to_path = self.schedule_path(to_state, id);
+    pub fn approve_schedule(&self, id: &str) -> Result<ScheduleEntry, StorageError> {
+        let (entry, _) = self.get_schedule(ScheduleState::AwaitingApproval, id)?;
 
-        if !from_path.exists() {
-            return Err(StorageError::NotFound(id.to_string()));
+        if self.check_overlap(entry.start, entry.end, None)? {
+            return Err(StorageError::Overlap);
         }
 
-        std::fs::create_dir_all(&to_folder)?;
-        std::fs::rename(from_path, to_path)?;
+        self.move_schedule(ScheduleState::AwaitingApproval, ScheduleState::Active, id)?;
+
+        Ok(ScheduleEntry {
+            id: entry.id,
+            state: ScheduleState::Active,
+            start: entry.start,
+            end: entry.end,
+        })
+    }
+
+    fn save_schedule(
+        &self,
+        state: ScheduleState,
+        id: &str,
+        content: &str,
+    ) -> Result<(), StorageError> {
+        let folder = self.state_path(state);
+        std::fs::create_dir_all(&folder)?;
+
+        let path = self.schedule_path(state, id);
+        std::fs::write(path, content)?;
         Ok(())
     }
 
-    pub fn check_overlap(
+    fn check_overlap(
         &self,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
@@ -189,7 +220,26 @@ impl Storage {
         Ok(false)
     }
 
-    pub fn generate_id(&self, start: DateTime<Utc>) -> String {
+    fn move_schedule(
+        &self,
+        from_state: ScheduleState,
+        to_state: ScheduleState,
+        id: &str,
+    ) -> Result<(), StorageError> {
+        let from_path = self.schedule_path(from_state, id);
+        let to_folder = self.state_path(to_state);
+        let to_path = self.schedule_path(to_state, id);
+
+        if !from_path.exists() {
+            return Err(StorageError::NotFound(id.to_string()));
+        }
+
+        std::fs::create_dir_all(&to_folder)?;
+        std::fs::rename(from_path, to_path)?;
+        Ok(())
+    }
+
+    fn generate_id(&self, start: DateTime<Utc>) -> String {
         let uuid = uuid::Uuid::new_v4();
         let timestamp = start.format("%Y%m%dT%H%M%SZ");
         format!("{}_{}", timestamp, uuid)

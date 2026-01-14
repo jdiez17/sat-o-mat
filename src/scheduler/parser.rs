@@ -35,6 +35,7 @@ pub enum TimeExpr {
 }
 
 impl TimeExpr {
+    #[allow(dead_code)]
     pub fn resolve(&self, start: DateTime<Utc>) -> DateTime<Utc> {
         match self {
             TimeExpr::Relative(d) => start + *d,
