@@ -33,30 +33,30 @@
     </div>
 </div>
 
+<!-- Position Info -->
+<div class="grid grid-cols-2 gap-4 text-sm mb-4">
+    <div class="bg-zinc-950 rounded px-3 py-2">
+        <div class="text-xs text-zinc-500 uppercase tracking-wide mb-1">Az</div>
+        <div class="font-mono text-lg text-zinc-400">---°</div>
+    </div>
+    <div class="bg-zinc-950 rounded px-3 py-2">
+        <div class="text-xs text-zinc-500 uppercase tracking-wide mb-1">El</div>
+        <div class="font-mono text-lg text-zinc-400">---°</div>
+    </div>
+</div>
+
 <!-- Automatic Control -->
 <div class="space-y-2 mb-4">
     <div class="text-xs text-zinc-500 uppercase tracking-wide">Automatic Control</div>
     <div class="grid grid-cols-2 gap-4 text-sm">
-        <div class="bg-zinc-950 rounded px-3 py-2 border border-zinc-800">
-            <div class="text-xs text-zinc-500 uppercase tracking-wide mb-1">Target Azimuth</div>
+        <div class="bg-zinc-950 rounded px-3 py-2">
+            <div class="text-xs text-zinc-500 uppercase tracking-wide mb-1">Tgt Az</div>
             <div class="font-mono text-lg text-zinc-200" x-text="$store.tracker.sample ? `${$store.tracker.sample.azimuth_deg}°` : '---'"></div>
         </div>
-        <div class="bg-zinc-950 rounded px-3 py-2 border border-zinc-800">
-            <div class="text-xs text-zinc-500 uppercase tracking-wide mb-1">Target Elevation</div>
+        <div class="bg-zinc-950 rounded px-3 py-2">
+            <div class="text-xs text-zinc-500 uppercase tracking-wide mb-1">Tgt El</div>
             <div class="font-mono text-lg text-zinc-200" x-text="$store.tracker.sample ? `${$store.tracker.sample.elevation_deg}°` : '---'"></div>
         </div>
-    </div>
-</div>
-
-<!-- Position Info -->
-<div class="grid grid-cols-2 gap-4 text-sm mb-4">
-    <div class="bg-zinc-950 rounded px-3 py-2 border border-zinc-800">
-        <div class="text-xs text-zinc-500 uppercase tracking-wide mb-1">Azimuth</div>
-        <div class="font-mono text-lg text-zinc-400">---°</div>
-    </div>
-    <div class="bg-zinc-950 rounded px-3 py-2 border border-zinc-800">
-        <div class="text-xs text-zinc-500 uppercase tracking-wide mb-1">Elevation</div>
-        <div class="font-mono text-lg text-zinc-400">---°</div>
     </div>
 </div>
 
@@ -64,21 +64,21 @@
 <div class="space-y-3">
     <div class="text-xs text-zinc-500 uppercase tracking-wide">Manual Control</div>
     <div class="grid grid-cols-2 gap-3">
-        <div>
-            <label class="text-xs text-zinc-400 mb-1 block">Target Az</label>
+        <div class="bg-zinc-950 rounded px-3 py-2">
+            <label class="text-xs text-zinc-500 uppercase tracking-wide mb-1 block">TGT AZ</label>
             <input type="number" disabled
-                   class="w-full px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-zinc-500 cursor-not-allowed"
+                   class="w-full px-2 py-1.5 bg-zinc-950/70 rounded text-sm text-zinc-500 cursor-not-allowed"
                    placeholder="0-360">
         </div>
-        <div>
-            <label class="text-xs text-zinc-400 mb-1 block">Target El</label>
+        <div class="bg-zinc-950 rounded px-3 py-2">
+            <label class="text-xs text-zinc-500 uppercase tracking-wide mb-1 block">TGT EL</label>
             <input type="number" disabled
-                   class="w-full px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-zinc-500 cursor-not-allowed"
+                   class="w-full px-2 py-1.5 bg-zinc-950/70 rounded text-sm text-zinc-500 cursor-not-allowed"
                    placeholder="0-90">
         </div>
     </div>
     <button disabled
-            class="w-full px-3 py-2 bg-zinc-800 text-zinc-500 text-sm rounded cursor-not-allowed">
+            class="w-full px-3 py-2 bg-zinc-950/70 text-zinc-500 text-sm rounded border border-zinc-800 cursor-not-allowed">
         Go to Position
     </button>
 </div>
