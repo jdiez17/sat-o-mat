@@ -14,6 +14,7 @@ use super::config::{Config, Permission};
 
 #[derive(Clone)]
 pub struct AuthenticatedUser {
+    #[allow(dead_code)]
     pub name: String,
     pub permissions: HashSet<Permission>,
 }

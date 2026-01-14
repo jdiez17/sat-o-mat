@@ -9,7 +9,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use utoipa::ToSchema;
 
 use crate::{
-    scheduler::approval::{evaluate_approval, ApprovalResult},
+    scheduler::approval::ApprovalResult,
     web::api::error::ApiResult,
 };
 use crate::{
@@ -80,27 +80,7 @@ pub async fn submit_schedule(
     let schedule = Schedule::from_str(&body).map_err(|e| ApiError::Validation(e.to_string()))?;
 
     let storage = &state.storage;
-
-    if storage.check_overlap(schedule.start, schedule.end, None)? {
-        return Err(ApiError::Conflict("schedule_overlap"));
-    }
-
-    let approval_result = evaluate_approval(state.config.approval.mode);
-    let target_state = if approval_result.is_approved() {
-        ScheduleState::Active
-    } else {
-        ScheduleState::AwaitingApproval
-    };
-
-    let id = storage.generate_id(schedule.start);
-    storage.save_schedule(target_state, &id, &body)?;
-
-    let entry = ScheduleEntry {
-        id,
-        state: target_state,
-        start: schedule.start,
-        end: schedule.end,
-    };
+    let (entry, approval_result) = storage.submit_schedule(&schedule, &body, state.config.approval.mode)?;
 
     let approval_status = match approval_result {
         ApprovalResult::Approved => "approved",
@@ -367,16 +347,9 @@ pub async fn approve_schedule(
 
     let storage = &state.storage;
 
-    let (entry, _) = storage.get_schedule(ScheduleState::AwaitingApproval, &id)?;
+    let entry = storage.approve_schedule(&id)?;
 
-    if storage.check_overlap(entry.start, entry.end, None)? {
-        return Err(ApiError::Conflict("schedule_overlap"));
-    }
-
-    storage.move_schedule(ScheduleState::AwaitingApproval, ScheduleState::Active, &id)?;
-
-    let mut response = ScheduleResponse::from(entry);
-    response.status = "approved".to_string();
+    let response = ScheduleResponse::from(entry);
 
     Ok((StatusCode::OK, Json(response)))
 }

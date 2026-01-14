@@ -4,6 +4,7 @@ use thiserror::Error;
 
 use crate::{executor::Executor, scheduler::Schedule, tracker::Tracker};
 
+#[allow(dead_code)]
 pub struct Runner {
     pub schedule: Schedule,
     pub executor: Executor,
