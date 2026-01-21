@@ -20,21 +20,6 @@
         </div>
     </div>
 
-    <!-- FFT Widget -->
-    <div class="lg:col-span-12">
-        <div class="widget bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col overflow-hidden"
-             x-data="{ collapsed: false }">
-            {% set widget_title = "FFT" %}
-            {% set widget_fullscreen_url = "" %}
-            {% set widget_collapsible = true %}
-            {% set widget_right = "<span class='text-xs text-zinc-500 uppercase tracking-wide'>Offline</span>" %}
-            {% include "partials/widget_header.html" %}
-            <div class="widget-content p-4" x-show="!collapsed" x-cloak>
-                {% include "partials/fft_widget.html" %}
-            </div>
-        </div>
-    </div>
-
     <!-- Controls Widget -->
     <div class="lg:col-span-12">
         <div class="widget bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col overflow-hidden"
@@ -59,5 +44,21 @@
             </div>
         </div>
     </div>
+
+    <!-- FFT Widget -->
+    <div class="lg:col-span-12">
+        <div class="widget bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col overflow-hidden"
+             x-data="{ collapsed: false }">
+            {% set widget_title = "FFT" %}
+            {% set widget_fullscreen_url = "" %}
+            {% set widget_collapsible = true %}
+            {% set widget_right = "<span class='text-xs text-zinc-500 uppercase tracking-wide'>Offline</span>" %}
+            {% include "partials/widget_header.html" %}
+            <div class="widget-content p-4" x-show="!collapsed" x-cloak>
+                {% include "partials/fft_widget.html" %}
+            </div>
+        </div>
+    </div>
+
 </div>
 {% endblock %}
