@@ -5,6 +5,7 @@ use utoipa::{
 
 use crate::web::api::error::ErrorResponse;
 
+use super::api::predict::{PredictQuery, PredictResponse};
 use super::api::schedules::{ListSchedulesQuery, ScheduleDetailResponse, ScheduleVariable};
 use super::api::tracker::TrackerRequest;
 
@@ -22,6 +23,7 @@ use super::api::tracker::TrackerRequest;
         crate::web::api::tracker::status_mode,
         crate::web::api::tracker::status_sample,
         crate::web::api::tracker::status_trajectory,
+        crate::web::api::predict::list_predictions,
     ),
     components(
         schemas(
@@ -35,6 +37,9 @@ use super::api::tracker::TrackerRequest;
             TrackerRequest,
             crate::tracker::TrackerMode,
             crate::tracker::TrackerSample,
+            PredictQuery,
+            PredictResponse,
+            crate::predict::Pass,
         )
     ),
     modifiers(&SecurityAddon),
@@ -45,7 +50,8 @@ use super::api::tracker::TrackerRequest;
     ),
     tags(
         (name = "schedules", description = "Schedule management"),
-        (name = "tracker", description = "Tracker control")
+        (name = "tracker", description = "Tracker control"),
+        (name = "predict", description = "Satellite pass predictions")
     )
 )]
 pub struct ApiDoc;
