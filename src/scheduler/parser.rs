@@ -35,7 +35,6 @@ pub enum TimeExpr {
 }
 
 impl TimeExpr {
-    #[allow(dead_code)]
     pub fn resolve(&self, start: DateTime<Utc>) -> DateTime<Utc> {
         match self {
             TimeExpr::Relative(d) => start + *d,
@@ -55,14 +54,46 @@ impl Schedule {
     pub fn from_str(yaml: &str) -> Result<Self, ParseError> {
         let root: serde_yaml::Value = serde_yaml::from_str(yaml)?;
 
-        let variables: HashMap<String, serde_yaml::Value> = root
+        let mut variables: HashMap<String, serde_yaml::Value> = root
             .get("variables")
             .map(|v| serde_yaml::from_value(v.clone()))
             .transpose()?
             .unwrap_or_default();
 
-        let start = parse_time_variable(&variables, "start")?;
-        let end = parse_time_variable(&variables, "end")?;
+        // Parse start (defaults to "now")
+        let start = {
+            let s = variables
+                .get("start")
+                .and_then(|v| v.as_str())
+                .map(|s| s.trim())
+                .unwrap_or("now");
+
+            if s.eq_ignore_ascii_case("now") {
+                Ok(Utc::now())
+            } else {
+                DateTime::parse_from_rfc3339(s)
+                    .map(|dt| dt.with_timezone(&Utc))
+                    .map_err(|e| ParseError::Validation(format!("invalid 'start': {}", e)))
+            }
+        }?;
+
+        // Add resolved start for variable substitution
+        variables.insert(
+            "start".to_string(),
+            serde_yaml::Value::String(start.to_rfc3339()),
+        );
+
+        // Parse end (with variable resolution)
+        let end = variables
+            .get("end")
+            .ok_or_else(|| ParseError::Validation("missing 'end'".into()))
+            .and_then(|v| {
+                resolve_value(v, &variables)
+                    .as_str()
+                    .ok_or_else(|| ParseError::Validation("'end' must be string".into()))
+                    .and_then(|s| parse_time(s.to_string()))
+            })
+            .map(|time_expr| time_expr.resolve(start))?;
 
         if end <= start {
             return Err(ParseError::Validation("'end' must be after 'start'".into()));
@@ -99,8 +130,7 @@ fn parse_step(
         .map(|v| resolve_value(v, vars))
         .and_then(|v| v.as_str().map(String::from))
         .map(parse_time)
-        .transpose()
-        .map_err(|e| err(&e))?;
+        .transpose()?;
 
     // Find the command key (anything that isn't "time")
     let (module, value) = map
@@ -123,7 +153,7 @@ fn parse_step(
     Ok(Step { time, command })
 }
 
-fn parse_time(s: String) -> Result<TimeExpr, String> {
+fn parse_time(s: String) -> Result<TimeExpr, ParseError> {
     let s = s.trim();
 
     // Relative: T+10s, T-5m
@@ -157,27 +187,16 @@ fn parse_time(s: String) -> Result<TimeExpr, String> {
     // Plain absolute
     DateTime::parse_from_rfc3339(s)
         .map(|dt| TimeExpr::Absolute(dt.with_timezone(&Utc)))
-        .map_err(|e| e.to_string())
+        .map_err(|e| ParseError::Validation(format!("invalid time '{s}': {}", e)))
 }
 
-fn parse_time_variable(
-    variables: &HashMap<String, serde_yaml::Value>,
-    name: &str,
-) -> Result<DateTime<Utc>, ParseError> {
-    let str_val = variables
-        .get(name)
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ParseError::Validation(format!("missing mandatory variable '{}'", name)))?;
-
-    DateTime::parse_from_rfc3339(str_val)
-        .map(|dt| dt.with_timezone(&Utc))
-        .map_err(|e| ParseError::Validation(format!("invalid '{}' datetime: {}", name, e)))
-}
-
-fn parse_duration(s: &str) -> Result<Duration, String> {
+fn parse_duration(s: &str) -> Result<Duration, ParseError> {
     humantime::parse_duration(s.trim())
-        .map_err(|e| e.to_string())
-        .and_then(|d| Duration::from_std(d).map_err(|e| e.to_string()))
+        .map_err(|e| ParseError::Validation(format!("invalid duration {s}: {}", e)))
+        .and_then(|d| {
+            Duration::from_std(d)
+                .map_err(|e| ParseError::Validation(format!("duration out of range: {}", e)))
+        })
 }
 
 fn resolve_value(
