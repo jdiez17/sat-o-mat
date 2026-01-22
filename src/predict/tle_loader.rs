@@ -66,26 +66,27 @@ impl TleLoader {
     /// Parse a single TLE file (may contain multiple satellites)
     fn parse_tle_file(&self, path: &Path) -> Result<Vec<TleEntry>, PredictError> {
         let content = fs::read_to_string(path)?;
-        let filename = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        let filename = path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
 
         let tle_entries = parse_multi_tle(&content);
         let mut results = Vec::new();
 
         for (name, line1, line2) in tle_entries {
             // Parse with sgp4
-            let elements = match Elements::from_tle(
-                name.clone(),
-                line1.as_bytes(),
-                line2.as_bytes(),
-            ) {
-                Ok(e) => e,
-                Err(e) => {
-                    return Err(PredictError::InvalidTle {
-                        file: filename.clone(),
-                        message: e.to_string(),
-                    });
-                }
-            };
+            let elements =
+                match Elements::from_tle(name.clone(), line1.as_bytes(), line2.as_bytes()) {
+                    Ok(e) => e,
+                    Err(e) => {
+                        return Err(PredictError::InvalidTle {
+                            file: filename.clone(),
+                            message: e.to_string(),
+                        });
+                    }
+                };
 
             let constants = match Constants::from_elements(&elements) {
                 Ok(c) => c,
@@ -138,10 +139,7 @@ fn parse_multi_tle(content: &str) -> Vec<(Option<String>, String, String)> {
 
     while i < lines.len() {
         // Check if current line is line1 (starts with "1 ")
-        if lines[i].starts_with("1 ")
-            && i + 1 < lines.len()
-            && lines[i + 1].starts_with("2 ")
-        {
+        if lines[i].starts_with("1 ") && i + 1 < lines.len() && lines[i + 1].starts_with("2 ") {
             // 2-line TLE (no name)
             result.push((None, lines[i].to_string(), lines[i + 1].to_string()));
             i += 2;

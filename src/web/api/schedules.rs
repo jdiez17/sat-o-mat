@@ -18,7 +18,6 @@ use crate::{
 
 use crate::web::config::Permission;
 
-
 #[utoipa::path(
     post,
     path = "/api/schedules",
