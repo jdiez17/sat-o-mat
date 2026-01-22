@@ -9,7 +9,6 @@ use serde::{Deserialize, Deserializer, Serialize};
 use utoipa::ToSchema;
 
 use crate::{
-    scheduler::approval::ApprovalResult,
     scheduler::storage::{ScheduleEntry, ScheduleState, StorageError},
     scheduler::utils::yaml_value_to_str,
     scheduler::Schedule,
@@ -19,35 +18,6 @@ use crate::{
 
 use crate::web::config::Permission;
 
-#[derive(Debug, Clone, Serialize, ToSchema)]
-pub struct ScheduleResponse {
-    pub id: String,
-    pub status: String,
-    pub start: String,
-    pub end: String,
-}
-
-impl From<ScheduleEntry> for ScheduleResponse {
-    fn from(entry: ScheduleEntry) -> Self {
-        let status = match entry.state {
-            ScheduleState::Active => "approved",
-            ScheduleState::AwaitingApproval => "pending",
-        };
-        ScheduleResponse {
-            id: entry.id,
-            status: status.to_string(),
-            start: entry.start.to_rfc3339(),
-            end: entry.end.to_rfc3339(),
-        }
-    }
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct SubmitScheduleResponse {
-    #[serde(flatten)]
-    pub schedule: ScheduleResponse,
-    pub approval_status: String,
-}
 
 #[utoipa::path(
     post,
@@ -55,7 +25,7 @@ pub struct SubmitScheduleResponse {
     tag = "schedules",
     request_body(content = String, content_type = "application/yaml"),
     responses(
-        (status = 201, description = "Schedule submitted successfully", body = SubmitScheduleResponse),
+        (status = 201, description = "Schedule submitted successfully", body = ScheduleEntry),
         (status = 400, description = "Validation error", body = ErrorResponse),
         (status = 401, description = "Missing or invalid API key"),
         (status = 403, description = "Insufficient permissions"),
@@ -73,21 +43,10 @@ pub async fn submit_schedule(
     let schedule = Schedule::from_str(&body).map_err(|e| ApiError::Validation(e.to_string()))?;
 
     let storage = &state.storage;
-    let (entry, approval_result) =
+    let (entry, _approval_result) =
         storage.submit_schedule(&schedule, &body, state.config.approval.mode)?;
 
-    let approval_status = match approval_result {
-        ApprovalResult::Approved => "approved",
-        ApprovalResult::Pending => "pending",
-    };
-
-    Ok((
-        StatusCode::CREATED,
-        Json(SubmitScheduleResponse {
-            schedule: entry.into(),
-            approval_status: approval_status.to_string(),
-        }),
-    ))
+    Ok((StatusCode::CREATED, Json(entry)))
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -171,7 +130,7 @@ pub struct ListSchedulesQuery {
         ("end" = Option<String>, Query, description = "Only include schedules overlapping this end time (RFC3339)")
     ),
     responses(
-        (status = 200, description = "List of schedules", body = Vec<ScheduleResponse>),
+        (status = 200, description = "List of schedules", body = Vec<ScheduleEntry>),
         (status = 401, description = "Missing or invalid API key"),
         (status = 403, description = "Insufficient permissions")
     ),
@@ -195,7 +154,7 @@ pub async fn list_schedules(
     let start_filter = query.start;
     let end_filter = query.end;
 
-    let mut filtered: Vec<ScheduleResponse> = Vec::new();
+    let mut filtered: Vec<ScheduleEntry> = Vec::new();
     for state_entry in states_to_query {
         let schedules = storage.get_schedules(state_entry)?;
         for entry in schedules {
@@ -209,7 +168,7 @@ pub async fn list_schedules(
                     continue;
                 }
             }
-            filtered.push(entry.into());
+            filtered.push(entry);
         }
     }
 
@@ -218,7 +177,8 @@ pub async fn list_schedules(
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ScheduleDetailResponse {
-    pub schedule: ScheduleResponse,
+    #[serde(flatten)]
+    pub schedule: ScheduleEntry,
     pub content: String,
     pub variables: Vec<ScheduleVariable>,
 }
@@ -266,7 +226,7 @@ pub async fn get_schedule(
                 return Ok((
                     StatusCode::OK,
                     Json(ScheduleDetailResponse {
-                        schedule: entry.into(),
+                        schedule: entry,
                         content,
                         variables,
                     }),
@@ -323,7 +283,7 @@ pub async fn delete_schedule(
         ("id" = String, Path, description = "Schedule ID")
     ),
     responses(
-        (status = 200, description = "Schedule approved", body = ScheduleResponse),
+        (status = 200, description = "Schedule approved", body = ScheduleEntry),
         (status = 401, description = "Missing or invalid API key"),
         (status = 403, description = "Insufficient permissions"),
         (status = 404, description = "Schedule not found", body = ErrorResponse),
@@ -342,9 +302,7 @@ pub async fn approve_schedule(
 
     let entry = storage.approve_schedule(&id)?;
 
-    let response = ScheduleResponse::from(entry);
-
-    Ok((StatusCode::OK, Json(response)))
+    Ok((StatusCode::OK, Json(entry)))
 }
 
 #[utoipa::path(

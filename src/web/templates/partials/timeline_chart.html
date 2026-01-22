@@ -129,7 +129,7 @@
                                      @click="if (hasDragged) return; $store.schedules.openDetail(schedule.id)"
                                      :style="scheduleStyle(schedule)"
                                      :title="scheduleTitle(schedule)"
-                                     :class="[schedule.status === 'approved' ? 'bg-cyan-500' : 'bg-amber-500', isDragging ? '' : 'transition-all']"
+                                     :class="[schedule.state === 'active' ? 'bg-cyan-500' : 'bg-amber-500', isDragging ? '' : 'transition-all']"
                                      class="absolute top-1 bottom-1 rounded cursor-pointer hover:brightness-110 hover:z-20">
                                     <span x-show="scheduleWidth(schedule) > 60"
                                           x-text="schedule.id.slice(0,8)"

@@ -5,9 +5,7 @@ use utoipa::{
 
 use crate::web::api::error::ErrorResponse;
 
-use super::api::schedules::{
-    ListSchedulesQuery, ScheduleDetailResponse, ScheduleResponse, SubmitScheduleResponse,
-};
+use super::api::schedules::{ListSchedulesQuery, ScheduleDetailResponse, ScheduleVariable};
 use super::api::tracker::TrackerRequest;
 
 #[derive(OpenApi)]
@@ -27,9 +25,8 @@ use super::api::tracker::TrackerRequest;
     ),
     components(
         schemas(
-            ScheduleResponse,
             ScheduleDetailResponse,
-            SubmitScheduleResponse,
+            ScheduleVariable,
             ErrorResponse,
             ListSchedulesQuery,
             crate::scheduler::storage::ScheduleEntry,

@@ -54,7 +54,7 @@
                         <div class="flex items-center gap-3 px-3 py-2 hover:bg-zinc-800/50 transition-colors cursor-pointer"
                              @click="$store.schedules.openDetail(schedule.id)">
                             <!-- Status dot -->
-                            <span :class="schedule.status === 'approved' ? 'bg-cyan-400' : 'bg-amber-400'"
+                            <span :class="schedule.state === 'active' ? 'bg-cyan-400' : 'bg-amber-400'"
                                   class="w-2 h-2 rounded-full flex-shrink-0"></span>
                             <!-- ID (short) + Time + Duration -->
                             <div class="flex-1 min-w-0">
@@ -70,7 +70,7 @@
                             </div>
                             <!-- Actions -->
                             <div class="flex items-center gap-1 flex-shrink-0" @click.stop>
-                                <button x-show="schedule.status === 'pending'"
+                                <button x-show="schedule.state === 'awaiting_approval'"
                                         @click="$store.schedules.approve(schedule.id)"
                                         class="p-1.5 text-green-400 hover:bg-green-500/20 rounded"
                                         title="Approve">
@@ -78,7 +78,7 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                                     </svg>
                                 </button>
-                                <button x-show="schedule.status === 'pending'"
+                                <button x-show="schedule.state === 'awaiting_approval'"
                                         @click="$store.schedules.reject(schedule.id)"
                                         class="p-1.5 text-red-400 hover:bg-red-500/20 rounded"
                                         title="Reject">

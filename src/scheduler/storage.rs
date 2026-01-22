@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use log::error;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use strum_macros::AsRefStr;
 use thiserror::Error;
 use utoipa::ToSchema;
 
@@ -10,20 +11,13 @@ use crate::scheduler::{
     Schedule,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema, AsRefStr)]
 #[serde(rename_all = "snake_case")]
 pub enum ScheduleState {
     Active,
     AwaitingApproval,
-}
-
-impl ScheduleState {
-    pub fn folder_name(&self) -> &'static str {
-        match self {
-            ScheduleState::Active => "Active",
-            ScheduleState::AwaitingApproval => "AwaitingApproval",
-        }
-    }
+    Completed,
+    Failed,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -56,7 +50,7 @@ impl Storage {
     }
 
     fn state_path(&self, state: ScheduleState) -> PathBuf {
-        self.base.join(state.folder_name())
+        self.base.join(state.as_ref())
     }
 
     fn schedule_path(&self, state: ScheduleState, id: &str) -> PathBuf {
@@ -88,7 +82,11 @@ impl Storage {
             let content = match std::fs::read_to_string(&entry_path) {
                 Ok(content) => content,
                 Err(e) => {
-                    error!("Failed to read schedule file {}: {}", entry_path.display(), e);
+                    error!(
+                        "Failed to read schedule file {}: {}",
+                        entry_path.display(),
+                        e
+                    );
                     continue;
                 }
             };

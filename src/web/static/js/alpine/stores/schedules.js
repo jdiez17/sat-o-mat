@@ -142,10 +142,11 @@ export default {
             const res = await auth.fetch(`/api/schedules/${id}`);
             if (!res.ok) throw new Error('Failed to load');
             const data = await res.json();
+            const { content, variables, ...schedule } = data;
             this.modalData = {
-                schedule: data.schedule,
-                content: data.content || '',
-                variables: data.variables || []
+                schedule: schedule,
+                content: content || '',
+                variables: variables || []
             };
         } catch (e) {
             this.modalError = e.message;

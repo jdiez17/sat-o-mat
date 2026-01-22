@@ -27,9 +27,9 @@
                     <div class="flex items-center gap-3">
                         <h2 class="text-lg font-medium" x-text="$store.schedules.modalMode === 'new' ? 'New Schedule' : 'Schedule Details'"></h2>
                         <template x-if="$store.schedules.modalMode === 'view' && $store.schedules.modalData">
-                            <span x-show="$store.schedules.modalData.schedule.status === 'approved'"
+                            <span x-show="$store.schedules.modalData.schedule.state === 'active'"
                                   class="px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-500/20 text-cyan-400">Active</span>
-                            <span x-show="$store.schedules.modalData.schedule.status !== 'approved'"
+                            <span x-show="$store.schedules.modalData.schedule.state !== 'active'"
                                   class="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400">Pending</span>
                         </template>
                     </div>
@@ -204,7 +204,7 @@
                                     class="px-3 py-1.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors">
                                 Delete Schedule
                             </button>
-                            <div x-show="$store.schedules.modalData.schedule.status === 'pending'" class="flex items-center gap-2">
+                            <div x-show="$store.schedules.modalData.schedule.state === 'awaiting_approval'" class="flex items-center gap-2">
                                 <button @click="reject()"
                                         class="px-4 py-1.5 text-sm text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors">
                                     Reject
