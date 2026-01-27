@@ -1,4 +1,13 @@
-use axum::{routing::delete, routing::get, routing::post, Router};
+use axum::{
+    body::Body,
+    http::{header, HeaderValue, Request},
+    middleware::{self, Next},
+    response::Response,
+    routing::delete,
+    routing::get,
+    routing::post,
+    Router,
+};
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 use tower_http::cors::{Any, CorsLayer};
@@ -11,13 +20,22 @@ use crate::predict::TleLoader;
 use crate::scheduler::Storage;
 use crate::tracker::{GroundStation, Tracker};
 
-use super::api::predict as predict_handlers;
-use super::api::schedules as schedule_handlers;
-use super::api::tracker as tracker_handlers;
+use super::api::predict;
+use super::api::schedules;
+use super::api::tracker;
 use super::api_doc::ApiDoc;
 use super::auth::AppState;
 use super::config::Config;
 use super::ui::handlers as ui_handlers;
+
+/// Middleware to add Cache-Control: no-cache header to responses
+async fn add_cache_control(req: Request<Body>, next: Next) -> Response {
+    let mut response = next.run(req).await;
+    response
+        .headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
+    response
+}
 
 pub async fn run_server(config: Config) -> std::io::Result<()> {
     let bind_addr = config.web.bind.clone();
@@ -52,47 +70,36 @@ pub async fn run_server(config: Config) -> std::io::Result<()> {
         .allow_methods(Any)
         .allow_headers(Any);
 
+    // API routes with cache-control middleware
+    let api_routes = Router::new()
+        // Schedule API endpoints
+        .route("/schedules", post(schedules::submit_schedule))
+        .route("/schedules", get(schedules::list_schedules))
+        .route("/schedules/{id}", get(schedules::get_schedule))
+        .route("/schedules/{id}", delete(schedules::delete_schedule))
+        .route("/schedules/{id}/approve", post(schedules::approve_schedule))
+        .route("/schedules/{id}/reject", post(schedules::reject_schedule))
+        .route("/schedules/validate", post(schedules::validate_schedule))
+        // Tracker API endpoints
+        .route("/tracker/run", post(tracker::run))
+        .route("/tracker/stop", post(tracker::stop))
+        .route("/tracker/status/mode", get(tracker::status_mode))
+        .route("/tracker/status/sample", get(tracker::status_sample))
+        .route(
+            "/tracker/status/trajectory",
+            get(tracker::status_trajectory),
+        )
+        // Predict API endpoints
+        .route("/predict", get(predict::list_predictions))
+        // Add Cache-Control: no-cache to all API responses
+        .layer(middleware::from_fn(add_cache_control));
+
     let app = Router::new()
         // UI routes
         .route("/", get(ui_handlers::dashboard))
         .route("/timeline", get(ui_handlers::timeline))
-        // Schedule API endpoints
-        .route("/api/schedules", post(schedule_handlers::submit_schedule))
-        .route("/api/schedules", get(schedule_handlers::list_schedules))
-        .route("/api/schedules/{id}", get(schedule_handlers::get_schedule))
-        .route(
-            "/api/schedules/{id}",
-            delete(schedule_handlers::delete_schedule),
-        )
-        .route(
-            "/api/schedules/{id}/approve",
-            post(schedule_handlers::approve_schedule),
-        )
-        .route(
-            "/api/schedules/{id}/reject",
-            post(schedule_handlers::reject_schedule),
-        )
-        .route(
-            "/api/schedules/validate",
-            post(schedule_handlers::validate_schedule),
-        )
-        // Tracker API endpoints
-        .route("/api/tracker/run", post(tracker_handlers::run))
-        .route("/api/tracker/stop", post(tracker_handlers::stop))
-        .route(
-            "/api/tracker/status/mode",
-            get(tracker_handlers::status_mode),
-        )
-        .route(
-            "/api/tracker/status/sample",
-            get(tracker_handlers::status_sample),
-        )
-        .route(
-            "/api/tracker/status/trajectory",
-            get(tracker_handlers::status_trajectory),
-        )
-        // Predict API endpoints
-        .route("/api/predict", get(predict_handlers::list_predictions))
+        // API routes with cache control
+        .nest("/api", api_routes)
         // Static files
         .nest_service("/static", ServeDir::new("src/web/static"))
         // OpenAPI / Swagger
