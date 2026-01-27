@@ -12,4 +12,4 @@ pub use error::TrackerError;
 pub use ground_station::GroundStation;
 pub use sample::TrackerSample;
 pub use tracker::{FrequencyPlan, Tracker, TrackerMode};
-pub use types::{Command, RadioConfig};
+pub use types::{Command, RunCommand};

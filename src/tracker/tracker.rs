@@ -69,20 +69,38 @@ impl Tracker {
         }
     }
 
+    /// Execute a tracker command
+    pub fn execute_command(&mut self, cmd: &super::types::Command) -> Result<(), TrackerError> {
+        log::debug!("execute command {cmd:?}");
+        match cmd {
+            super::types::Command::Run(r) => {
+                self.run(r.tle.clone(), r.end, r.radio.clone())?;
+            }
+            super::types::Command::Stop => {
+                self.stop();
+            }
+            crate::tracker::Command::RotatorPark { .. } => todo!(),
+        }
+        Ok(())
+    }
+
     pub fn status(&self) -> TrackerStatus {
         self.shared.lock().unwrap().status.clone()
     }
 
-    pub fn stop(&mut self) {
+    fn stop(&mut self) {
         if let Some(worker) = self.worker.take() {
+            log::debug!("sending stop signal to worker thread");
             let _ = worker.stop_tx.send(());
             let _ = worker.join.join();
+            log::debug!("worker thread joined");
         }
+
         let mut locked = self.shared.lock().unwrap();
         locked.status.mode = TrackerMode::Idle;
     }
 
-    pub fn run(
+    fn run(
         &mut self,
         tle: String,
         end: Option<DateTime<Utc>>,
@@ -90,6 +108,7 @@ impl Tracker {
     ) -> Result<(), TrackerError> {
         self.reap_finished_worker();
         if self.worker.is_some() {
+            log::warn!("worker already exists");
             return Err(TrackerError::AlreadyRunning);
         }
 
@@ -101,10 +120,13 @@ impl Tracker {
             let result = run_tracker_loop(shared.clone(), station, tle, end, radio, stop_rx);
 
             if result.is_err() {
+                log::error!("thread returned error {result:?}",);
                 let mut locked = shared.lock().unwrap();
                 locked.status.mode = TrackerMode::Idle;
                 locked.status.last_sample = None;
                 locked.status.trajectory.clear();
+            } else {
+                log::info!("thread exited successfully");
             }
 
             result
@@ -131,8 +153,10 @@ impl Tracker {
             .map(|worker| worker.join.is_finished())
             .unwrap_or(false);
         if is_finished {
+            log::debug!("reap_finished_worker: worker thread has finished, reaping");
             if let Some(worker) = self.worker.take() {
-                let _ = worker.join.join();
+                let result = worker.join.join();
+                log::debug!("worker joined with result={result:?}",);
             }
         }
     }
@@ -146,6 +170,9 @@ fn run_tracker_loop(
     radio: Option<RadioConfig>,
     stop_rx: mpsc::Receiver<()>,
 ) -> Result<(), TrackerError> {
+    log::info!("tracker thread starting, end={end:?}",);
+
+    // Prepare objects used for trajectory calculation
     let (name, line1, line2) = parse_tle_lines(&tle)?;
     let elements = Elements::from_tle(name, line1.as_bytes(), line2.as_bytes())?;
     let constants = Constants::from_elements(&elements)?;
@@ -159,6 +186,7 @@ fn run_tracker_loop(
         })
         .unwrap_or_else(|| build_frequency_plan(None, None));
 
+    // Update tracker status with the object we are tracking.
     {
         let mut locked = shared.lock().unwrap();
         locked.status.mode = TrackerMode::Running {
@@ -166,11 +194,15 @@ fn run_tracker_loop(
             end,
             tle_name: elements.object_name.clone(),
         };
+        log::info!("thread running")
     }
 
     loop {
+        // Calculate the target's trajectory for the next time window
         let window_start = Utc::now();
         let window_end = end.unwrap_or(window_start + DEFAULT_OPEN_ENDED);
+
+        log::debug!("computing trajectory from {window_start} to {window_end}",);
         let trajectory = predict_trajectory(
             &station,
             &elements,
@@ -180,7 +212,9 @@ fn run_tracker_loop(
             &frequencies,
             STEP,
         )?;
+        log::debug!("trajectory computed: {} points", trajectory.len());
 
+        // Update status, make trajectory visible to other consumers
         {
             let mut locked = shared.lock().unwrap();
             locked.status.trajectory = trajectory.clone();
@@ -188,6 +222,7 @@ fn run_tracker_loop(
         }
 
         for point in trajectory {
+            // Wait until the next point in the target's trajectory
             let now = Utc::now();
             let sleep_duration = if point.timestamp > now {
                 (point.timestamp - now)
@@ -197,26 +232,35 @@ fn run_tracker_loop(
                 std::time::Duration::from_secs(0)
             };
 
+            // Have we received a stop signal?
             let should_stop = match stop_rx.recv_timeout(sleep_duration) {
+                // Yes
                 Ok(()) => true,
-                Err(mpsc::RecvTimeoutError::Timeout) => false,
                 Err(mpsc::RecvTimeoutError::Disconnected) => true,
+                // No
+                Err(mpsc::RecvTimeoutError::Timeout) => false,
             };
+            // We have received a stop signal. Reset the tracker status and return.
             if should_stop {
+                log::info!("received stop signal, exiting");
                 let mut locked = shared.lock().unwrap();
                 locked.status.mode = TrackerMode::Idle;
                 return Ok(());
             }
 
+            // Update the current position (sample) of the target in the shared status
             let mut locked = shared.lock().unwrap();
             locked.status.last_sample = Some(point.clone());
         }
 
+        // If we have reached the end time, break out of the loop
         if end.is_some() {
             break;
         }
     }
 
+    // Reset tracker status
+    log::info!("loop exited normally");
     let mut locked = shared.lock().unwrap();
     locked.status.mode = TrackerMode::Idle;
     locked.status.last_sample = None;

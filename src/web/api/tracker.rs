@@ -1,27 +1,14 @@
 use axum::{extract::State, Json};
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 
-use crate::tracker::{RadioConfig, TrackerError, TrackerMode, TrackerSample};
+use crate::tracker::{self, RunCommand, TrackerError, TrackerMode, TrackerSample};
 use crate::web::api::error::{ApiError, ApiResult, ErrorResponse};
 use crate::web::auth::{require_permission, AppState, AuthenticatedUser};
 use crate::web::config::Permission;
 
-#[derive(Debug, Deserialize, Serialize, ToSchema)]
-pub struct TrackerRequest {
-    #[schema(
-        example = "ISS (ZARYA)\n1 25544U 98067A   26012.17690827  .00009276  00000-0  17471-3 0  9998\n2 25544  51.6333 351.7881 0007723   8.9804 351.1321 15.49250518547578"
-    )]
-    pub tle: String,
-    pub end: Option<DateTime<Utc>>,
-    pub radio: Option<RadioConfig>,
-}
-
 #[utoipa::path(
     post,
     path = "/api/tracker/run",
-    request_body = TrackerRequest,
+    request_body = RunCommand,
     security(
         ("api_key" = [])
     ),
@@ -36,13 +23,15 @@ pub struct TrackerRequest {
 pub async fn run(
     State(state): State<AppState>,
     user: AuthenticatedUser,
-    Json(request): Json<TrackerRequest>,
+    Json(request): Json<RunCommand>,
 ) -> ApiResult<Json<TrackerMode>> {
     require_permission(&user, Permission::SubmitSchedule)?;
+
+    let cmd = tracker::Command::Run(request);
+
     let mut tracker = state.tracker.lock().await;
-    tracker
-        .run(request.tle, request.end, request.radio)
-        .map_err(map_tracker_error)?;
+    tracker.execute_command(&cmd).map_err(map_tracker_error)?;
+
     Ok(Json(tracker.status().mode))
 }
 
@@ -64,7 +53,9 @@ pub async fn stop(
 ) -> ApiResult<Json<TrackerMode>> {
     require_permission(&user, Permission::SubmitSchedule)?;
     let mut tracker = state.tracker.lock().await;
-    tracker.stop();
+    tracker
+        .execute_command(&tracker::Command::Stop)
+        .map_err(map_tracker_error)?;
     Ok(Json(tracker.status().mode))
 }
 
@@ -85,7 +76,8 @@ pub async fn status_mode(
     _user: AuthenticatedUser,
 ) -> ApiResult<Json<TrackerMode>> {
     let tracker = state.tracker.lock().await;
-    Ok(Json(tracker.status().mode))
+    let mode = tracker.status().mode;
+    Ok(Json(mode))
 }
 
 #[utoipa::path(

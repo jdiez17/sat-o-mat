@@ -7,7 +7,7 @@ use crate::web::api::error::ErrorResponse;
 
 use super::api::predict::{PredictQuery, PredictResponse};
 use super::api::schedules::{ListSchedulesQuery, ScheduleDetailResponse, ScheduleVariable};
-use super::api::tracker::TrackerRequest;
+use crate::tracker::RunCommand;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -34,7 +34,7 @@ use super::api::tracker::TrackerRequest;
             crate::scheduler::storage::ScheduleEntry,
             crate::scheduler::storage::ScheduleState,
             crate::scheduler::approval::ApprovalResult,
-            TrackerRequest,
+            RunCommand,
             crate::tracker::TrackerMode,
             crate::tracker::TrackerSample,
             PredictQuery,
