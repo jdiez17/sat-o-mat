@@ -218,20 +218,21 @@ export default () => ({
 
     getVariableInputValue(name) {
         const value = this.variables[name];
-        return this.isDatetimeVar(name) ? this.isoToLocalInput(value) : value ?? '';
+        return this.isDatetimeVar(name) ? this.isoToUtcInput(value) : value ?? '';
     },
 
     onVariableInput(name, event) {
         this.variables[name] = this.isDatetimeVar(name)
-            ? this.localInputToIso(event.target.value) || ''
+            ? this.utcInputToIso(event.target.value) || ''
             : event.target.value;
         this.scheduleValidation();
     },
 
     applyPreset(name, offsetMinutes) {
         const d = new Date();
-        d.setMinutes(d.getMinutes() + offsetMinutes);
+        d.setUTCMinutes(d.getUTCMinutes() + offsetMinutes);
         this.variables[name] = d.toISOString();
+
         this.scheduleValidation();
     },
 
@@ -343,19 +344,41 @@ export default () => ({
         }
     },
 
-    isoToLocalInput(value) {
+    isoToUtcInput(value) {
         const d = new Date(value);
         if (isNaN(d.getTime())) return '';
         const pad = (n) => n.toString().padStart(2, '0');
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
     },
 
-    localInputToIso(value) {
-        const d = new Date(value);
+    utcInputToIso(value) {
+        if (!value) return '';
+        // Parse datetime-local format as UTC: YYYY-MM-DDTHH:mm:ss
+        const match = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})$/);
+        if (!match) return '';
+        const [_, year, month, day, hours, minutes, seconds] = match;
+        const d = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds));
         return isNaN(d.getTime()) ? '' : d.toISOString();
     },
 
     formatDisplayDate(value) {
         return formatDateTime(value);
+    },
+
+    formatLocalTime(value) {
+        if (!value) return '';
+        const d = new Date(value);
+        if (isNaN(d.getTime())) return '';
+        const pad = (n) => n.toString().padStart(2, '0');
+
+        // Get timezone offset in hours and minutes
+        const offsetMinutes = -d.getTimezoneOffset();
+        const offsetHours = Math.floor(Math.abs(offsetMinutes) / 60);
+        const offsetMins = Math.abs(offsetMinutes) % 60;
+        const offsetSign = offsetMinutes >= 0 ? '+' : '-';
+        const offset = `UTC${offsetSign}${offsetHours}${offsetMins > 0 ? ':' + pad(offsetMins) : ''}`;
+
+        const localTime = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        return `${localTime} (${offset})`;
     },
 });
