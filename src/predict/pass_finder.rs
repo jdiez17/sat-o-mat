@@ -99,7 +99,7 @@ pub fn predict_passes(
     }
 
     // Handle pass in progress at end of window
-    if pass_start.is_some() {
+    if let Some(aos) = pass_start {
         let sample = propagate_sample(station, elements, constants, end, &frequencies)
             .map_err(|e| PredictError::Propagation(e.to_string()))?;
 
@@ -107,13 +107,13 @@ pub fn predict_passes(
             let pass = Pass {
                 satellite: satellite_name.to_string(),
                 norad_id,
-                aos: pass_start.unwrap(),
+                aos,
                 los: end,
                 tca: max_el_time,
                 max_elevation_deg: round2(max_el),
                 aos_azimuth_deg: round2(aos_az),
                 los_azimuth_deg: round2(sample.azimuth_deg),
-                duration_seconds: (end - pass_start.unwrap()).num_seconds(),
+                duration_seconds: (end - aos).num_seconds(),
                 orbit_number: None,
             };
             passes.push(pass);
@@ -148,12 +148,10 @@ fn refine_crossing(
             } else {
                 low = mid;
             }
+        } else if above {
+            low = mid;
         } else {
-            if above {
-                low = mid;
-            } else {
-                high = mid;
-            }
+            high = mid;
         }
     }
 
