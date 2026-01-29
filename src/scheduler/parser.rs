@@ -261,8 +261,8 @@ mod tests {
         );
         assert!(matches!(
             &schedule.steps[0].command,
-            Command::Tracker(tracker::Command::Run { rotator, tle, .. })
-            if rotator.as_deref() == Some("uhf1") && tle.contains("ISS (ZARYA)")
+            Command::Tracker(tracker::Command::Run(r))
+            if r.rotator.as_deref() == Some("uhf1") && r.tle.contains("ISS (ZARYA)")
         ));
 
         // Step 1: executor.run_shell (immediate)
@@ -300,12 +300,11 @@ mod tests {
                     .with_timezone(&Utc)
             ))
         );
-        assert_eq!(
-            schedule.steps[3].command,
-            Command::Tracker(tracker::Command::RotatorPark {
-                rotator: "uhf1".to_string(),
-            })
-        );
+        assert!(matches!(
+            &schedule.steps[3].command,
+            Command::Tracker(tracker::Command::RotatorPark { rotator })
+            if rotator == "uhf1"
+        ));
 
         // Step 4: executor.run_shell (immediate)
         assert_eq!(
