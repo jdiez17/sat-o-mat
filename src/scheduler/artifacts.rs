@@ -6,6 +6,8 @@ use std::{
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::scheduler::storage::ScheduleState;
+
 pub struct ArtifactsManager {
     base_dir: PathBuf,
     execution_log: ExecutionLog,
@@ -26,8 +28,8 @@ impl ArtifactsManager {
         self.execution_log.save(&self.execution_log_path())
     }
 
-    pub fn finish_with_status(&mut self, status: String) -> io::Result<()> {
-        self.execution_log.state = status;
+    pub fn finish_with_state(&mut self, state: ScheduleState) -> io::Result<()> {
+        self.execution_log.state = state;
         self.execution_log.completed_at = Some(Utc::now());
         self.execution_log.save(&self.execution_log_path())
     }
@@ -59,7 +61,7 @@ pub struct StepResult {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutionLog {
     pub schedule_id: String,
-    pub state: String,
+    pub state: ScheduleState,
     pub started_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
     pub step_results: Vec<StepResult>,
@@ -69,7 +71,7 @@ impl ExecutionLog {
     pub fn new(schedule_id: String) -> Self {
         Self {
             schedule_id,
-            state: "running".to_string(),
+            state: ScheduleState::Running,
             started_at: Utc::now(),
             completed_at: None,
             step_results: Vec::new(),

@@ -9,6 +9,7 @@ use tokio::sync::Mutex;
 use crate::scheduler::artifacts::ArtifactsManager;
 use crate::scheduler::artifacts::StepResult;
 use crate::scheduler::parser;
+use crate::scheduler::storage::ScheduleState;
 use crate::{
     executor::{Executor, ExecutorError},
     scheduler::Schedule,
@@ -65,11 +66,11 @@ impl Runner {
 
         match result {
             Ok(_) => {
-                self.artifacts.finish_with_status("completed".to_string())?;
+                self.artifacts.finish_with_state(ScheduleState::Completed)?;
                 Ok(self.artifacts)
             }
             Err(e) => {
-                self.artifacts.finish_with_status("failed".to_string())?;
+                self.artifacts.finish_with_state(ScheduleState::Failed)?;
                 Err(e)
             }
         }

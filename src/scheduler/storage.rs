@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use log::error;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use strum_macros::AsRefStr;
+use strum_macros::{AsRefStr, Display};
 use thiserror::Error;
 use utoipa::ToSchema;
 
@@ -11,11 +11,14 @@ use crate::scheduler::{
     Schedule,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema, AsRefStr)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema, AsRefStr, Display,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum ScheduleState {
     Active,
     AwaitingApproval,
+    Running,
     Completed,
     Failed,
 }
@@ -255,5 +258,25 @@ impl Storage {
         let uuid = uuid::Uuid::new_v4();
         let timestamp = start.format("%Y%m%dT%H%M%SZ");
         format!("{}_{}", timestamp, uuid)
+    }
+
+    #[allow(dead_code)]
+    pub fn mark_running(&self, id: &str) -> Result<(), StorageError> {
+        self.move_schedule(ScheduleState::Active, ScheduleState::Running, id)
+    }
+
+    #[allow(dead_code)]
+    pub fn mark_completed(&self, id: &str) -> Result<(), StorageError> {
+        self.move_schedule(ScheduleState::Running, ScheduleState::Completed, id)
+    }
+
+    #[allow(dead_code)]
+    pub fn mark_failed(&self, id: &str) -> Result<(), StorageError> {
+        self.move_schedule(ScheduleState::Running, ScheduleState::Failed, id)
+    }
+
+    #[allow(dead_code)]
+    pub fn get_artifacts_dir(&self, id: &str) -> PathBuf {
+        self.base.join("artifacts").join(id)
     }
 }
