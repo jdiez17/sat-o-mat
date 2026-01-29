@@ -1,14 +1,16 @@
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use std::io;
 use std::path::PathBuf;
+use std::sync::mpsc;
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::sync::Mutex;
 
-use crate::scheduler::artifacts::ArtifactsManager;
-use crate::scheduler::artifacts::StepResult;
+use crate::abort::AbortSignal;
+use crate::scheduler::artifacts::{ArtifactsManager, StepResult};
 use crate::scheduler::parser;
+use crate::scheduler::parser::Step;
 use crate::scheduler::storage::ScheduleState;
 use crate::{
     executor::{Executor, ExecutorError},
@@ -40,17 +42,20 @@ pub struct Runner {
     executor: Executor,
     tracker: Arc<Mutex<Tracker>>,
     artifacts: ArtifactsManager,
+    abort_rx: mpsc::Receiver<AbortSignal>,
 }
 
 impl Runner {
     pub fn new(
         schedule_id: String,
         schedule: Schedule,
-        executor: Executor,
         tracker: Arc<Mutex<Tracker>>,
         base_dir: PathBuf,
     ) -> RunnerResult<Self> {
         let artifacts = ArtifactsManager::new(base_dir, &schedule_id)?;
+
+        let (abort_tx, abort_rx) = mpsc::channel();
+        let executor = Executor::new(artifacts.artifacts_dir().clone(), abort_tx);
 
         Ok(Self {
             schedule_id,
@@ -58,6 +63,7 @@ impl Runner {
             executor,
             tracker,
             artifacts,
+            abort_rx,
         })
     }
 
@@ -80,14 +86,24 @@ impl Runner {
         log::info!("Starting schedule {}", self.schedule_id);
 
         for (i, step) in self.schedule.steps.clone().iter().enumerate() {
-            if let Some(time_expr) = &step.time {
-                let target = time_expr.resolve(self.schedule.start);
-                log::info!("Step {} waiting until {}", i, target);
-                self.wait_until(target);
-            }
+            let time_until_next_step = if let Some(time_expr) = &step.time {
+                let time_to_execute = time_expr.resolve(self.schedule.start);
+                log::info!("Step {} waiting until {}", i, time_to_execute);
 
+                let now = Utc::now();
+                (time_to_execute - now)
+                    .to_std()
+                    .unwrap_or(Duration::from_secs(0))
+            } else {
+                Duration::ZERO
+            };
+
+            self.wait_and_check_abort(time_until_next_step)?;
             self.execute_step(i, step)?;
         }
+
+        // Give background monitoring threads a moment to detect any failures
+        self.wait_and_check_abort(Duration::from_millis(100))?;
 
         log::info!(
             "Schedule {} finished running successfully",
@@ -96,19 +112,7 @@ impl Runner {
         Ok(())
     }
 
-    fn wait_until(&self, target: DateTime<Utc>) {
-        let now = Utc::now();
-        if target > now {
-            let duration = (target - now).to_std().unwrap_or(Duration::from_secs(0));
-            std::thread::sleep(duration);
-        }
-    }
-
-    fn execute_step(
-        &mut self,
-        index: usize,
-        step: &crate::scheduler::parser::Step,
-    ) -> RunnerResult<()> {
+    fn execute_step(&mut self, index: usize, step: &Step) -> RunnerResult<()> {
         let started_at = Utc::now();
         log::info!("Executing step {}: {:?}", index, step.command);
 
@@ -126,15 +130,27 @@ impl Runner {
             }
         };
 
-        self.artifacts.add_step_result(StepResult {
-            step_index: index,
-            command_type: format!("{:?}", step.command),
-            started_at,
-            completed_at: Some(Utc::now()),
-            success: result.is_ok(),
-            error: result.as_ref().err().map(|e| e.to_string()),
-        })?;
+        self.artifacts
+            .add_step_result(StepResult::new(index, step, started_at, &result))?;
 
         result
+    }
+
+    /// Wait for a duration while checking for abort signals.
+    /// Use Duration::ZERO for a non-blocking check.
+    fn wait_and_check_abort(&mut self, duration: Duration) -> RunnerResult<()> {
+        match self.abort_rx.recv_timeout(duration) {
+            Ok(signal) => {
+                self.artifacts
+                    .update_step_result(signal.step, signal.reason.clone())?;
+
+                Err(RunnerError::Aborted {
+                    step: signal.step,
+                    reason: signal.reason,
+                })
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => Ok(()),
+            Err(mpsc::RecvTimeoutError::Disconnected) => Ok(()),
+        }
     }
 }

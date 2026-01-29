@@ -6,7 +6,7 @@ use std::{
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::scheduler::storage::ScheduleState;
+use crate::scheduler::{parser::Step, storage::ScheduleState};
 
 pub struct ArtifactsManager {
     base_dir: PathBuf,
@@ -26,6 +26,17 @@ impl ArtifactsManager {
     pub fn add_step_result(&mut self, step_result: StepResult) -> io::Result<()> {
         self.execution_log.step_results.push(step_result);
         self.execution_log.save(&self.execution_log_path())
+    }
+
+    pub fn update_step_result(&mut self, index: usize, error: String) -> io::Result<()> {
+        if let Some(step_result) = self.execution_log.step_results.get_mut(index) {
+            step_result.completed_at = Some(Utc::now());
+            step_result.success = false;
+            step_result.error = Some(error);
+            self.execution_log.save(&self.execution_log_path())
+        } else {
+            Ok(())
+        }
     }
 
     pub fn finish_with_state(&mut self, state: ScheduleState) -> io::Result<()> {
@@ -56,6 +67,24 @@ pub struct StepResult {
     pub completed_at: Option<DateTime<Utc>>,
     pub success: bool,
     pub error: Option<String>,
+}
+
+impl StepResult {
+    pub fn new<T: ToString>(
+        index: usize,
+        step: &Step,
+        started_at: DateTime<Utc>,
+        result: &Result<(), T>,
+    ) -> Self {
+        Self {
+            step_index: index,
+            command_type: format!("{:?}", step.command),
+            started_at,
+            completed_at: Some(Utc::now()),
+            success: result.is_ok(),
+            error: result.as_ref().err().map(|e| e.to_string()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
