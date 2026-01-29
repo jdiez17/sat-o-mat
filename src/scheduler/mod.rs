@@ -1,4 +1,5 @@
 pub mod approval;
+mod artifacts;
 pub mod parser;
 pub mod runner;
 pub mod storage;
