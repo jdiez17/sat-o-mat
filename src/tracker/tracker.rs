@@ -4,21 +4,13 @@ use std::sync::{mpsc, Arc, Mutex as StdMutex};
 use std::thread;
 
 use super::error::TrackerError;
-use super::ground_station::GroundStation;
 use super::parsing::parse_tle_lines;
-use super::sample::TrackerSample;
 use super::types::RadioConfig;
-use crate::predict::{build_frequency_plan, predict_trajectory};
+use crate::predict::{build_frequency_plan, predict_trajectory, GroundStation, Sample};
 use serde::Serialize;
 
 const DEFAULT_OPEN_ENDED: Duration = Duration::minutes(15);
 const STEP: Duration = Duration::seconds(1);
-
-#[derive(Clone)]
-pub struct FrequencyPlan {
-    pub uplink_hz: Option<f64>,
-    pub downlink_hz: Option<f64>,
-}
 
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub enum TrackerMode {
@@ -33,8 +25,8 @@ pub enum TrackerMode {
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub struct TrackerStatus {
     pub mode: TrackerMode,
-    pub last_sample: Option<TrackerSample>,
-    pub trajectory: Vec<TrackerSample>,
+    pub last_sample: Option<Sample>,
+    pub trajectory: Vec<Sample>,
 }
 
 #[derive(Debug)]

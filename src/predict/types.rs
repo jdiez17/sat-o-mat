@@ -2,6 +2,13 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use utoipa::ToSchema;
 
+/// Frequency plan for Doppler shift calculations
+#[derive(Clone)]
+pub struct FrequencyPlan {
+    pub uplink_hz: Option<f64>,
+    pub downlink_hz: Option<f64>,
+}
+
 /// Information about a single satellite from TLE
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct SatelliteInfo {

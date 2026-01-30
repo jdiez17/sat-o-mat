@@ -69,7 +69,7 @@ pub async fn list_predictions(
     );
 
     // Get ground station from config
-    let station = crate::tracker::GroundStation::from_coordinates(
+    let station = crate::predict::GroundStation::from_coordinates(
         &state.config.station.coordinates,
         Some(state.config.station.altitude_m),
     )

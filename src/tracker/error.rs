@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+use crate::predict::PredictError;
+
 #[derive(Debug, Error)]
 pub enum TrackerError {
     #[error("tracker already running")]
@@ -10,12 +12,12 @@ pub enum TrackerError {
     InvalidTle(#[from] sgp4::TleError),
     #[error("elements error: {0}")]
     Elements(#[from] sgp4::ElementsError),
-    #[error("propagation error: {0}")]
-    Propagation(String),
+    #[error("predict error: {0}")]
+    Predict(#[from] PredictError),
 }
 
 impl From<sgp4::Error> for TrackerError {
     fn from(err: sgp4::Error) -> Self {
-        TrackerError::Propagation(err.to_string())
+        TrackerError::Predict(PredictError::Propagation(err.to_string()))
     }
 }

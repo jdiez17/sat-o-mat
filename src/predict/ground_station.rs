@@ -1,4 +1,4 @@
-use crate::tracker::EARTH_ROTATION_RAD_S;
+pub const EARTH_ROTATION_RAD_S: f64 = 7.292_115e-5;
 
 #[derive(Debug, Clone, Copy)]
 pub struct GroundStation {

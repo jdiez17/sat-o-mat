@@ -1,9 +1,10 @@
 use chrono::{DateTime, Duration, Utc};
 use sgp4::{Constants, Elements};
 
-use crate::predict::error::PredictError;
-use crate::predict::types::Pass;
-use crate::predict::{propagate_sample, FrequencyPlan, GroundStation};
+use super::error::PredictError;
+use super::ground_station::GroundStation;
+use super::propagation::{propagate_sample, round2};
+use super::types::{FrequencyPlan, Pass};
 
 const COARSE_STEP_SECONDS: i64 = 60; // 1 minute for initial scan
 const FINE_STEP_SECONDS: i64 = 1; // 1 second for refinement
@@ -159,8 +160,4 @@ fn refine_crossing(
         .map_err(|e| PredictError::Propagation(e.to_string()))?;
 
     Ok((high, final_sample.azimuth_deg))
-}
-
-fn round2(v: f64) -> f64 {
-    (v * 100.0).round() / 100.0
 }

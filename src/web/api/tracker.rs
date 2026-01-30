@@ -1,6 +1,7 @@
 use axum::{extract::State, Json};
 
-use crate::tracker::{self, RunCommand, TrackerError, TrackerMode, TrackerSample};
+use crate::predict::Sample;
+use crate::tracker::{self, RunCommand, TrackerError, TrackerMode};
 use crate::web::api::error::{ApiError, ApiResult, ErrorResponse};
 use crate::web::auth::{require_permission, AppState, AuthenticatedUser};
 use crate::web::config::Permission;
@@ -87,7 +88,7 @@ pub async fn status_mode(
         ("api_key" = [])
     ),
     responses(
-        (status = 200, description = "Tracker sample", body = Option<TrackerSample>),
+        (status = 200, description = "Tracker sample", body = Option<Sample>),
         (status = 401, description = "Unauthorized", body = ErrorResponse)
     ),
     tag = "tracker"
@@ -95,7 +96,7 @@ pub async fn status_mode(
 pub async fn status_sample(
     State(state): State<AppState>,
     _user: AuthenticatedUser,
-) -> ApiResult<Json<Option<TrackerSample>>> {
+) -> ApiResult<Json<Option<Sample>>> {
     let tracker = state.tracker.lock().await;
     Ok(Json(tracker.status().last_sample))
 }
@@ -107,7 +108,7 @@ pub async fn status_sample(
         ("api_key" = [])
     ),
     responses(
-        (status = 200, description = "Tracker trajectory", body = Vec<TrackerSample>),
+        (status = 200, description = "Tracker trajectory", body = Vec<Sample>),
         (status = 401, description = "Unauthorized", body = ErrorResponse)
     ),
     tag = "tracker"
@@ -115,7 +116,7 @@ pub async fn status_sample(
 pub async fn status_trajectory(
     State(state): State<AppState>,
     _user: AuthenticatedUser,
-) -> ApiResult<Json<Vec<TrackerSample>>> {
+) -> ApiResult<Json<Vec<Sample>>> {
     let tracker = state.tracker.lock().await;
     Ok(Json(tracker.status().trajectory))
 }
@@ -126,6 +127,6 @@ fn map_tracker_error(err: TrackerError) -> ApiError {
         TrackerError::InvalidTleFormat => ApiError::Validation("invalid_tle_format".into()),
         TrackerError::InvalidTle(e) => ApiError::Validation(e.to_string()),
         TrackerError::Elements(e) => ApiError::Validation(e.to_string()),
-        TrackerError::Propagation(msg) => ApiError::Validation(msg),
+        TrackerError::Predict(e) => ApiError::Validation(e.to_string()),
     }
 }

@@ -36,7 +36,7 @@ use crate::tracker::RunCommand;
             crate::scheduler::approval::ApprovalResult,
             RunCommand,
             crate::tracker::TrackerMode,
-            crate::tracker::TrackerSample,
+            crate::predict::Sample,
             PredictQuery,
             PredictResponse,
             crate::predict::Pass,

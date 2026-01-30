@@ -1,10 +1,12 @@
 use chrono::{DateTime, Duration, Utc};
 use sgp4::{Constants, Elements};
 
-use crate::tracker::{
-    FrequencyPlan, GroundStation, TrackerError, TrackerSample, EARTH_ROTATION_RAD_S,
-    SPEED_OF_LIGHT_KM_S,
-};
+use super::error::PredictError;
+use super::ground_station::{GroundStation, EARTH_ROTATION_RAD_S};
+use super::sample::Sample;
+use super::types::FrequencyPlan;
+
+pub(crate) const SPEED_OF_LIGHT_KM_S: f64 = 299_792.458;
 
 fn parse_frequency_hz(input: &str) -> Option<f64> {
     let trimmed = input.trim();
@@ -37,7 +39,7 @@ pub fn predict_trajectory(
     end: DateTime<Utc>,
     frequencies: &FrequencyPlan,
     step: Duration,
-) -> Result<Vec<TrackerSample>, TrackerError> {
+) -> Result<Vec<Sample>, PredictError> {
     let mut cursor = start;
     let mut points = Vec::new();
 
@@ -56,14 +58,14 @@ pub fn propagate_sample(
     constants: &Constants,
     timestamp: DateTime<Utc>,
     frequencies: &FrequencyPlan,
-) -> Result<TrackerSample, TrackerError> {
+) -> Result<Sample, PredictError> {
     let minutes = elements
         .datetime_to_minutes_since_epoch(&timestamp.naive_utc())
-        .map_err(|e| TrackerError::Propagation(e.to_string()))?;
+        .map_err(|e| PredictError::Propagation(e.to_string()))?;
 
     let prediction = constants
         .propagate(minutes)
-        .map_err(|e| TrackerError::Propagation(e.to_string()))?;
+        .map_err(|e| PredictError::Propagation(e.to_string()))?;
 
     let sidereal =
         sgp4::iau_epoch_to_sidereal_time(sgp4::julian_years_since_j2000(&timestamp.naive_utc()));
@@ -109,7 +111,7 @@ pub fn propagate_sample(
         .uplink_hz
         .map(|f| apply_uplink_doppler(f, range_rate_km_s));
 
-    Ok(TrackerSample {
+    Ok(Sample {
         timestamp,
         azimuth_deg: round2(azimuth),
         elevation_deg: round2(elevation),
@@ -171,6 +173,6 @@ pub fn ecef_to_enu(dr: [f64; 3], lat_rad: f64, lon_rad: f64) -> (f64, f64, f64) 
     (east, north, up)
 }
 
-fn round2(value: f64) -> f64 {
+pub(crate) fn round2(value: f64) -> f64 {
     (value * 100.0).round() / 100.0
 }

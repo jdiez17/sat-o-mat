@@ -2,7 +2,7 @@ use chrono::DateTime;
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
-pub struct TrackerSample {
+pub struct Sample {
     pub timestamp: DateTime<chrono::Utc>,
     pub azimuth_deg: f64,
     pub elevation_deg: f64,
