@@ -17,6 +17,11 @@ export default {
     modalError: null,
     modalData: null, // { schedule, content, variables } for view mode
 
+    // Templates
+    templates: [],
+    templatesLoading: false,
+    templatesError: null,
+
     setViewRange(start, end) {
         this.viewRange = { start, end };
         this.fetchDebounced();
@@ -131,7 +136,6 @@ export default {
             return;
         }
 
-        // Clear previous state first
         this.modalData = null;
         this.modalError = null;
         this.modalLoading = true;
@@ -156,25 +160,31 @@ export default {
     },
 
     // Open modal in new/edit mode
-    openEditor() {
+    openEditor(opts = {}) {
         const auth = Alpine.store('auth');
         if (!auth.hasKey()) {
             auth.showModal();
             return;
         }
 
-        // Clear previous state
-        this.modalData = null;
         this.modalError = null;
         this.modalLoading = false;
         this.modalMode = 'new';
+
+        if (opts.templateName) {
+            this.modalData = {
+                templateName: opts.templateName,
+                variables: opts.variables || {},
+            };
+        } else {
+            this.modalData = null;
+        }
+
         this.modalOpen = true;
     },
 
     closeModal() {
         this.modalOpen = false;
-        // Don't clear data immediately - wait for transition to finish
-        // Data will be cleared when opening next time
     },
 
     formatDate(value, options = {}) {
@@ -200,5 +210,48 @@ export default {
                 return !(end <= viewStart || start >= viewEnd);
             })
             .sort((a, b) => new Date(a.start) - new Date(b.start));
+    },
+
+    async fetchTemplates() {
+        const auth = Alpine.store('auth');
+        if (!auth.hasKey()) {
+            this.templates = [];
+            return;
+        }
+
+        this.templatesLoading = true;
+        this.templatesError = null;
+
+        try {
+            const res = await auth.fetch('/api/schedules/templates');
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.message || data.error || 'Failed to load templates');
+            }
+            this.templates = await res.json();
+        } catch (e) {
+            this.templatesError = e.message;
+            this.templates = [];
+        } finally {
+            this.templatesLoading = false;
+        }
+    },
+
+    async fetchTemplate(name) {
+        const auth = Alpine.store('auth');
+        if (!auth.hasKey()) {
+            throw new Error('Not authenticated');
+        }
+
+        try {
+            const res = await auth.fetch(`/api/schedules/template/${encodeURIComponent(name)}`);
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.message || data.error || 'Failed to load template');
+            }
+            return await res.text();
+        } catch (e) {
+            throw new Error(`Failed to load template: ${e.message}`);
+        }
     },
 };

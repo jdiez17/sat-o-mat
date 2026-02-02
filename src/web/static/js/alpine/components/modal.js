@@ -11,6 +11,7 @@ export default () => ({
     validationMessage: '',
     submitting: false,
     validationTimer: null,
+    selectedTemplate: '',
 
     get store() {
         return Alpine.store('schedules');
@@ -70,19 +71,25 @@ export default () => ({
     },
 
     setupModal() {
+        this.yamlExpanded = true;
+        this.variablesExpanded = true;
+        this.selectedTemplate = '';
+
         if (this.isViewMode) {
-            this.yamlExpanded = true;
-            this.variablesExpanded = true;
             if (this.store.modalData?.content) {
                 this.$nextTick(() => this.initYamlEditor());
             }
         } else {
-            this.yamlExpanded = true;
-            this.variablesExpanded = true;
             if (this.store.modalMode === 'new') {
-                this.loadTemplate();
+                this.store.fetchTemplates();
             }
-            this.$nextTick(() => this.initYamlEditor());
+            this.$nextTick(() => {
+                this.initYamlEditor();
+                if (this.store.modalData?.templateName) {
+                    this.selectedTemplate = this.store.modalData.templateName;
+                    this.loadTemplate(this.store.modalData.variables || {});
+                }
+            });
         }
     },
 
@@ -153,6 +160,7 @@ export default () => ({
         this.submitting = false;
         this.yamlExpanded = true;
         this.variablesExpanded = true;
+        this.selectedTemplate = '';
     },
 
     showVariables() {
@@ -167,16 +175,24 @@ export default () => ({
             : Object.keys(this.variables).length;
     },
 
-    loadTemplate() {
-        const now = new Date();
-        const start = new Date(now.getTime() + 3600000);
-        const end = new Date(start.getTime() + 900000);
+    async loadTemplate(overrideVars = {}) {
+        if (!this.selectedTemplate) {
+            this.showValidation('error', 'Please select a template first');
+            return;
+        }
 
-        this.populateFromDocument({
-            variables: { start: start.toISOString(), end: end.toISOString(), satellite: 'ISS' },
-            steps: [{ time: 'T+0s', tracker: { observe: { target: '$satellite' } } }],
-        });
-        this.variablesStatus = 'Template loaded';
+        try {
+            const content = await this.store.fetchTemplate(this.selectedTemplate);
+            const doc = window.jsyaml.load(content);
+            const mergedDoc = {
+                ...doc,
+                variables: { ...(doc.variables || {}), ...overrideVars }
+            };
+            this.populateFromDocument(mergedDoc);
+            this.variablesStatus = this.selectedTemplate;
+        } catch (e) {
+            this.showValidation('error', e.message);
+        }
     },
 
     async handleFileUpload(event) {

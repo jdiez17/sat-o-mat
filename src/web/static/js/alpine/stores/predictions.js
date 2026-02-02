@@ -13,6 +13,7 @@ export default {
     // Modal state
     modalOpen: false,
     modalData: null,     // Selected pass details
+    selectedTemplate: '',
 
     setViewRange(start, end) {
         this.viewRange = { start, end };
@@ -80,6 +81,22 @@ export default {
 
     closeModal() {
         this.modalOpen = false;
+        this.selectedTemplate = '';
+    },
+
+    async createScheduleFromPass() {
+        if (!this.modalData || !this.selectedTemplate) return;
+
+        const templateName = this.selectedTemplate;
+        const variables = {
+            start: this.modalData.aos,
+            end: this.modalData.los,
+            satellite: this.modalData.satellite,
+        };
+
+        this.closeModal();
+
+        Alpine.store('schedules').openEditor({ templateName, variables });
     },
 
     // Group passes by satellite for timeline rows
