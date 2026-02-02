@@ -1,3 +1,5 @@
+use std::fs;
+
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
@@ -330,6 +332,98 @@ pub async fn reject_schedule(
     storage.delete_schedule(ScheduleState::AwaitingApproval, &id)?;
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/schedules/templates",
+    tag = "schedules",
+    responses(
+        (status = 200, description = "List of schedule templates", body = Vec<String>),
+        (status = 401, description = "Missing or invalid API key"),
+        (status = 403, description = "Insufficient permissions"),
+        (status = 404, description = "Templates folder not configured", body = ErrorResponse)
+    ),
+    security(("api_key" = []))
+)]
+pub async fn list_templates(
+    State(state): State<AppState>,
+    user: AuthenticatedUser,
+) -> ApiResult<impl IntoResponse> {
+    require_permission(&user, Permission::ListSchedules)?;
+
+    let templates_path = state
+        .config
+        .schedules
+        .templates
+        .as_ref()
+        .ok_or(ApiError::NotFound)?;
+
+    let mut templates: Vec<String> = fs::read_dir(templates_path)
+        .map_err(|e| ApiError::Validation(e.to_string()))?
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_file())
+        .filter_map(|e| {
+            let path = e.path();
+            let ext = path.extension()?;
+            if ext == "yml" || ext == "yaml" {
+                path.file_name()?.to_str().map(|s| s.to_string())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    templates.sort();
+    Ok((StatusCode::OK, Json(templates)))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/schedules/template/{name}",
+    tag = "schedules",
+    params(
+        ("name" = String, Path, description = "Template filename")
+    ),
+    responses(
+        (status = 200, description = "Template content", body = String, content_type = "text/plain"),
+        (status = 401, description = "Missing or invalid API key"),
+        (status = 403, description = "Insufficient permissions"),
+        (status = 404, description = "Template not found or templates folder not configured", body = ErrorResponse)
+    ),
+    security(("api_key" = []))
+)]
+pub async fn get_template(
+    State(state): State<AppState>,
+    user: AuthenticatedUser,
+    Path(name): Path<String>,
+) -> ApiResult<impl IntoResponse> {
+    require_permission(&user, Permission::ListSchedules)?;
+
+    if name.contains("..") || name.contains('/') || name.contains('\\') {
+        return Err(ApiError::Validation("Invalid template name".to_string()));
+    }
+    if !name.ends_with(".yml") && !name.ends_with(".yaml") {
+        return Err(ApiError::Validation(
+            "Template must be a YAML file".to_string(),
+        ));
+    }
+
+    let template_path = state
+        .config
+        .schedules
+        .templates
+        .as_ref()
+        .ok_or(ApiError::NotFound)?
+        .join(&name);
+
+    if !template_path.is_file() {
+        return Err(ApiError::NotFound);
+    }
+
+    let content =
+        fs::read_to_string(template_path).map_err(|e| ApiError::Validation(e.to_string()))?;
+    Ok((StatusCode::OK, content))
 }
 
 fn deserialize_option_datetime<'de, D>(deserializer: D) -> Result<Option<DateTime<Utc>>, D::Error>

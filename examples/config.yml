@@ -23,7 +23,8 @@ web:
   bind: "0.0.0.0:8080"
 
 schedules:
-  base_folder: "./sat-o-mat-data/schedules"
+  base: "./sat-o-mat-data/schedules"
+  templates: "./examples/schedule-templates"
 
 approval:
   mode: auto  # auto | manual

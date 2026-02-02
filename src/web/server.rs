@@ -39,7 +39,7 @@ async fn add_cache_control(req: Request<Body>, next: Next) -> Response {
 
 pub async fn run_server(config: Config) -> std::io::Result<()> {
     let bind_addr = config.web.bind.clone();
-    let storage = Storage::new(config.schedules.base_folder.clone());
+    let storage = Storage::new(config.schedules.base.clone());
     let station = GroundStation::from_coordinates(
         &config.station.coordinates,
         Some(config.station.altitude_m),
@@ -75,6 +75,8 @@ pub async fn run_server(config: Config) -> std::io::Result<()> {
         // Schedule API endpoints
         .route("/schedules", post(schedules::submit_schedule))
         .route("/schedules", get(schedules::list_schedules))
+        .route("/schedules/templates", get(schedules::list_templates))
+        .route("/schedules/template/{name}", get(schedules::get_template))
         .route("/schedules/{id}", get(schedules::get_schedule))
         .route("/schedules/{id}", delete(schedules::delete_schedule))
         .route("/schedules/{id}/approve", post(schedules::approve_schedule))

@@ -6,14 +6,19 @@ use utoipa::{
 use crate::web::api::error::ErrorResponse;
 
 use super::api::predict::{PredictQuery, PredictResponse};
-use super::api::schedules::{ListSchedulesQuery, ScheduleDetailResponse, ScheduleVariable};
+use super::api::schedules::{
+    ListSchedulesQuery, ScheduleDetailResponse, ScheduleValidationResponse, ScheduleVariable,
+};
 use crate::tracker::RunCommand;
 
 #[derive(OpenApi)]
 #[openapi(
     paths(
         crate::web::api::schedules::submit_schedule,
+        crate::web::api::schedules::validate_schedule,
         crate::web::api::schedules::list_schedules,
+        crate::web::api::schedules::list_templates,
+        crate::web::api::schedules::get_template,
         crate::web::api::schedules::get_schedule,
         crate::web::api::schedules::delete_schedule,
         crate::web::api::schedules::approve_schedule,
@@ -28,6 +33,7 @@ use crate::tracker::RunCommand;
     components(
         schemas(
             ScheduleDetailResponse,
+            ScheduleValidationResponse,
             ScheduleVariable,
             ErrorResponse,
             ListSchedulesQuery,

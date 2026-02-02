@@ -47,7 +47,9 @@ fn default_bind() -> String {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct SchedulesConfig {
-    pub base_folder: PathBuf,
+    pub base: PathBuf,
+    #[serde(default)]
+    pub templates: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
