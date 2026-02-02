@@ -98,7 +98,6 @@ impl Tracker {
         end: Option<DateTime<Utc>>,
         radio: Option<RadioConfig>,
     ) -> Result<(), TrackerError> {
-        self.reap_finished_worker();
         if self.worker.is_some() {
             log::warn!("worker already exists");
             return Err(TrackerError::AlreadyRunning);
@@ -136,21 +135,6 @@ impl Tracker {
         }
 
         Ok(())
-    }
-
-    fn reap_finished_worker(&mut self) {
-        let is_finished = self
-            .worker
-            .as_ref()
-            .map(|worker| worker.join.is_finished())
-            .unwrap_or(false);
-        if is_finished {
-            log::debug!("reap_finished_worker: worker thread has finished, reaping");
-            if let Some(worker) = self.worker.take() {
-                let result = worker.join.join();
-                log::debug!("worker joined with result={result:?}",);
-            }
-        }
     }
 }
 
