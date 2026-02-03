@@ -44,8 +44,12 @@ pub async fn submit_schedule(
     let schedule = Schedule::from_str(&body).map_err(|e| ApiError::Validation(e.to_string()))?;
 
     let storage = &state.storage;
-    let (entry, _approval_result) =
-        storage.submit_schedule(&schedule, &body, state.config.approval.mode)?;
+    let (entry, _approval_result) = storage.submit_schedule(
+        &schedule,
+        &body,
+        state.config.approval.mode,
+        query.name.as_deref(),
+    )?;
 
     Ok((StatusCode::CREATED, Json(entry)))
 }

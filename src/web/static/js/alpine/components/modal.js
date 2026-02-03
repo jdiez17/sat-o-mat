@@ -312,6 +312,13 @@ export default () => ({
         this.validationMessage = message;
     },
 
+    getScheduleName() {
+        // variablesStatus holds the template or file name (e.g. "nanoff_sband_rx.yml")
+        const source = this.variablesStatus || '';
+        // Strip file extension (.yml, .yaml) to get the basename
+        return source.replace(/\.(ya?ml)$/i, '');
+    },
+
     async submit() {
         const auth = Alpine.store('auth');
         if (!auth.hasKey()) {
@@ -329,7 +336,11 @@ export default () => ({
 
         this.submitting = true;
         try {
-            const res = await auth.fetch('/api/schedules', {
+            const name = this.getScheduleName();
+            const url = name
+                ? `/api/schedules?name=${encodeURIComponent(name)}`
+                : '/api/schedules';
+            const res = await auth.fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/yaml' },
                 body: yaml,

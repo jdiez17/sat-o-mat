@@ -143,6 +143,7 @@ impl Storage {
         schedule: &Schedule,
         content: &str,
         approval_mode: ApprovalMode,
+        name: Option<&str>,
     ) -> Result<(ScheduleEntry, ApprovalResult), StorageError> {
         if self.check_overlap(schedule.start, schedule.end, None)? {
             return Err(StorageError::Overlap);
@@ -155,7 +156,7 @@ impl Storage {
             ScheduleState::AwaitingApproval
         };
 
-        let id = self.generate_id(schedule.start);
+        let id = self.generate_id(schedule.start, name);
         self.save_schedule(target_state, &id, content)?;
 
         let entry = ScheduleEntry {
@@ -254,10 +255,13 @@ impl Storage {
         Ok(())
     }
 
-    fn generate_id(&self, start: DateTime<Utc>) -> String {
+    fn generate_id(&self, start: DateTime<Utc>, name: Option<&str>) -> String {
         let uuid = uuid::Uuid::new_v4();
         let timestamp = start.format("%Y%m%dT%H%M%SZ");
-        format!("{}_{}", timestamp, uuid)
+        match name {
+            Some(n) if !n.is_empty() => format!("{}_{}_{}", n, timestamp, uuid),
+            _ => format!("{}_{}", timestamp, uuid),
+        }
     }
 
     #[allow(dead_code)]
