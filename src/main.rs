@@ -1,3 +1,4 @@
+pub mod abort;
 mod executor;
 mod predict;
 mod radio;
@@ -14,7 +15,8 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::executor::Executor;
-use crate::tracker::{GroundStation, Tracker};
+use crate::predict::GroundStation;
+use crate::tracker::Tracker;
 
 #[derive(Parser)]
 #[command(name = "sat-o-mat")]
@@ -103,30 +105,53 @@ fn run(path: &str) -> ExitCode {
     let start_time = chrono::Utc::now();
     println!("Starting schedule at {}", start_time);
 
-    let executor = Executor::new();
+    let base_dir = PathBuf::from("sat-o-mat-data");
+    let schedule_id = format!("manual_{}", start_time.format("%Y%m%dT%H%M%SZ"));
+
+    let artifacts_dir = base_dir.join("artifacts").join(&schedule_id);
+    if let Err(e) = fs::create_dir_all(&artifacts_dir) {
+        eprintln!("Failed to create artifacts directory: {}", e);
+        return ExitCode::FAILURE;
+    }
+
     let tracker = Arc::new(Mutex::new(Tracker::new(GroundStation::default())));
 
-    let _path = PathBuf::from("/tmp/foo");
-    //let schedules = get_schedules(path, ScheduleState::AwaitingApproval).unwrap();
-
-    let runner = scheduler::runner::Runner {
+    let runner = match scheduler::runner::Runner::new(
+        schedule_id.clone(),
         schedule,
-        executor,
         tracker,
+        base_dir.clone(),
+    ) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("Failed to create runner: {}", e);
+            return ExitCode::FAILURE;
+        }
     };
 
-    let _ = runner.run();
-
-    println!("Schedule completed");
-    ExitCode::SUCCESS
+    match runner.run() {
+        Ok(artifacts) => {
+            println!("Schedule completed successfully");
+            println!(
+                "Execution log saved to: {}/artifacts/{}/execution.yaml",
+                base_dir.display(),
+                schedule_id
+            );
+            println!("State: {}", artifacts.execution_log().state);
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("Schedule execution failed: {}", e);
+            ExitCode::FAILURE
+        }
+    }
 }
 
 fn command_name(cmd: &Command) -> &'static str {
     match cmd {
         Command::Tracker(tracker::Command::RotatorPark { .. }) => "tracker.rotator_park",
         Command::Tracker(tracker::Command::Stop) => "tracker.stop",
-        Command::Tracker(tracker::Command::Run { .. }) => "tracker.run",
-        Command::Tracker(tracker::Command::RunFixedDuration { .. }) => "tracker.run_fixed_duration",
+        Command::Tracker(tracker::Command::Run(..)) => "tracker.run",
         Command::Executor(executor::Command::RunShell { .. }) => "executor.run_shell",
         Command::Executor(executor::Command::Stop) => "executor.stop",
         Command::Radio(radio::Command::Run { .. }) => "radio.run",

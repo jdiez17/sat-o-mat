@@ -25,3 +25,26 @@ pub enum Command {
     },
     Stop,
 }
+
+/// Execute a radio command
+pub fn execute_command(cmd: &Command) -> Result<(), String> {
+    match cmd {
+        Command::Run {
+            radio,
+            bandwidth,
+            out: _,
+            web_fft: _,
+        } => {
+            log::warn!(
+                "Radio command not yet implemented: {} ({})",
+                radio,
+                bandwidth
+            );
+            Ok(())
+        }
+        Command::Stop => {
+            log::warn!("Radio stop command not yet implemented");
+            Ok(())
+        }
+    }
+}
