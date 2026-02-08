@@ -20,11 +20,20 @@ use crate::{
 
 use crate::web::config::Permission;
 
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct SubmitScheduleQuery {
+    #[serde(default)]
+    pub name: Option<String>,
+}
+
 #[utoipa::path(
     post,
     path = "/api/schedules",
     tag = "schedules",
     request_body(content = String, content_type = "application/yaml"),
+    params(
+        ("name" = Option<String>, Query, description = "Optional name for the schedule")
+    ),
     responses(
         (status = 201, description = "Schedule submitted successfully", body = ScheduleEntry),
         (status = 400, description = "Validation error", body = ErrorResponse),
@@ -37,6 +46,7 @@ use crate::web::config::Permission;
 pub async fn submit_schedule(
     State(state): State<AppState>,
     user: AuthenticatedUser,
+    Query(query): Query<SubmitScheduleQuery>,
     body: String,
 ) -> ApiResult<impl IntoResponse> {
     require_permission(&user, Permission::SubmitSchedule)?;

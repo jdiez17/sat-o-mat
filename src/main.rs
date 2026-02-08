@@ -14,7 +14,6 @@ use std::process::ExitCode;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::executor::Executor;
 use crate::predict::GroundStation;
 use crate::tracker::Tracker;
 

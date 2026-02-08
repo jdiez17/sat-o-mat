@@ -12,4 +12,4 @@ pub use pass_finder::predict_passes;
 pub use propagation::*;
 pub use sample::Sample;
 pub use tle_loader::TleLoader;
-pub use types::{FrequencyPlan, Pass};
+pub use types::Pass;
