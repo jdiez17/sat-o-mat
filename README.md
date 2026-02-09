@@ -2,27 +2,80 @@
 
 An application to control satellite ground station hardware.
 
-It consists of the following modules:
+It consists of a scheduling system and a series of utilities to control the hardware.
 
-- [Web UI](...) [insert screenshots here]
-- [`tracker`](...)
-   - Calculates the trajectory of a satellite over a ground station
-   - Calculates (azimuth, elevation) angles and controls a [Hamlib](...)-compatible rotator
-   - Calculates Doppler corrections for the satellite's up/downlink frequencies and sends them to a [Hamlib](...)-compatible radio transceiver or an SDR-based modem.
-- [`radio`](...) opens a connection to one or more [Software Defined Radio](...) devices and acts as a TX/RX bridge
-    - Sends/receives IQ samples to/from TCP/UDP/[ZeroMQ](...) to software modems
-        - See [`akira25/gnuradio-docker-container`](https://github.com/akira25/gnuradio-docker-container) for an example flowgraph and further explanation of the motivation for this
-    - Computes FFT and other radio diagnostics and sends to Web UI
-    - Provides an optional Doppler-corrected IQ stream
-    - Optionally records corrected or uncorrected streams into files
-- [`executor`](...) runs and monitors various subprograms (scripts, GNU Radio flowcharts, [Linux Containers](...) etc.) and monitors them.
-- [`scheduler`](...) receives pass schedule requests from many sources (Web UI, API, SatNOGS, ...)
-    - Requests can be auto-approved by default, evaluated by a script, or manually evaluated in the Web UI
+- `sat-o-mat server`
+  - Runs a web UI with an API to manage the ground station's schedule
+  - Commandline flags:
+    - `--runner`: spawns a runner process that watches and executes the schedule entries.
+    - SatNOGS client that periodically polls for observations on the SatNOGS network and submits schedule requests to the API.
+- Utilities usually invoked by schedule scripts:
+  - `sat-o-mat tracker`
+    - Calculates the trajectory of an object relative to the ground station.
+    - Publishes realtime information about the relative range, speed, angles, etc. to a VITA-49 stream as context packets.
+  - `sat-o-mat rigctl`
+    - Controls a Hamlib compatible rotator or radio transceiver by translating VITA-49 packets to `rigctl` commands.
+    - Publishes actual rotator position as context packets.
+  - `sat-o-mat recoder`
+    - Captures all VITA-49 packets into SigMF files for analysis and debugging
 
-## Configuration
+## Scheduling
 
-- `tracker` needs to know which rotators are available on the system, maybe the radio tracking part as well.
-- `radio` needs to know what SDRs are available. Maybe it can auto detect, but some may have to be configured manually (e.g. VITA-49 hosts)
-- `scheduler` needs some kind of persistent storage for accepted schedule requests. And some kind of API keys / authorization.
--
-- `executor` does not need configuration or persistent storage.
+The `sat-o-mat server` maintains a list of schedule entries, which can be in the following categories:
+
+- **Active**: confirmed schedule entries that will be executed at the programmed time.
+- **Completed**: schedule entries that have finished executing. 
+- **Pending**: schedule entries which have been submitted but require manual approval before transitioning to the *Active* state.
+
+### Schedule Entry Definition
+
+Schedule entries are YAML files with the following structure:
+
+```yaml
+variables:
+  start: 2026-01-12T10:00:00Z
+  end: 2026-01-12T10:10:00Z
+  tle: ${sat-o-mat fetch-tle ISS}
+
+steps:
+  # Tracker setup
+  - sat-o-mat tracker < $TLE
+
+  # Before pass script
+  - python -c "hello world from pre_script"
+
+  # Start GNURadio flowgraph
+  - python /home/jdiez/flowgraph.py
+
+  # Post pass script
+  - time: $end - 10 seconds
+    cmd: echo "Pass about to end!"
+```
+
+There is a `variables` block and a `steps` block. 
+The `variables` block consists of any number of user-defined variables, with `start` and `end` (timestamps formatted as RFC3559) being used by the scheduling system to determine when the execution should start and when it should end.
+Variables may also be evaluated at schedule execution time by wrapping a shell command in `${...}`.
+
+The `steps` block is a list of commands to execute during the scheduled time.
+All commands in this list are spawned as subprocesses and continue executing in the background.
+The commands are spawned in the order given in the list, and the execution only stops if a command in the list has the `time` or `wait` properties (see below).
+
+Each command can be defined as
+
+```yaml
+- commandline_here args1 args2 $variable ...
+```
+
+or:
+
+```yaml
+- time: <RFC3559 formatted timestamp>
+  cmd: commandline_here args1 args2 $variable ...
+  wait: false | true
+  on_fail: abort | continue
+```
+
+- When `time` is set, the schedule execution waits until the given time before spawning the command.
+`time` can be given as an absolute timestamp or relative to another, for example `$end - 10 seconds` or `T+10 seconds` (equivalent to `$start + 10 seconds`).
+- When `wait` is set, the schedule execution waits until this command has finished executing.
+- When `on_fail` is `abort` (default), the schedule execution will stop if the command exits with an exit code other than 0.
