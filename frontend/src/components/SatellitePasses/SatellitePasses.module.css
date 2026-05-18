@@ -153,3 +153,40 @@
   max-width: 100%;
   position: relative;
 }
+
+/* Dialog footer with action buttons */
+.dialogFooter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.dialogAction {
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-primary);
+  transition: background 0.15s, color 0.15s;
+}
+
+.dialogAction:hover {
+  background: var(--bg-surface-hover);
+}
+
+.dialogActionPrimary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.dialogActionPrimary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}

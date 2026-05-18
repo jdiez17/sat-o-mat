@@ -39,6 +39,11 @@ export function Dashboard() {
     refreshTasks();
   }, [refreshTasks]);
 
+  const handleCreateTaskFromPass = useCallback((satellite: string, pass: ApiPass) => {
+    setSelectedPass(null);
+    setModalMode({ kind: 'create', fromPass: { satellite, pass } });
+  }, []);
+
   const widgets: Widget[] = [
     {
       key: 'ground-track',
@@ -96,6 +101,7 @@ export function Dashboard() {
           satellite={selectedPass.satellite}
           pass={selectedPass.pass}
           onClose={() => setSelectedPass(null)}
+          onCreateTask={handleCreateTaskFromPass}
         />
       )}
     </div>

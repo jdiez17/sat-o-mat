@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import Timeline, {
   TimelineMarkers,
   TodayMarker,
@@ -54,7 +54,20 @@ export function TaskTimeline({ tasks, onTaskSelect, timeRange, onTimeRangeChange
   ]);
   const tableRange = timeRange ?? internalRange;
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const scrollElRef = useRef<HTMLElement | null>(null);
   const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const el = scrollElRef.current;
+    if (!el) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse' && e.button === 0) {
+        el.setPointerCapture(e.pointerId);
+      }
+    };
+    el.addEventListener('pointerdown', onPointerDown);
+    return () => el.removeEventListener('pointerdown', onPointerDown);
+  }, []);
 
   const items: TimelineItemBase<number>[] = tasks
     .filter((t) => t.start && t.end)
@@ -78,10 +91,10 @@ export function TaskTimeline({ tasks, onTaskSelect, timeRange, onTimeRangeChange
       updateScrollCanvas: (start: number, end: number) => void,
     ) => {
       updateScrollCanvas(start, end);
+      const range: [number, number] = [start, end];
+      setInternalRange(range);
       clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
-        const range: [number, number] = [start, end];
-        setInternalRange(range);
         onTimeRangeChange?.(range);
       }, 200);
     },
@@ -109,6 +122,7 @@ export function TaskTimeline({ tasks, onTaskSelect, timeRange, onTimeRangeChange
           defaultTimeEnd={defaultEnd}
           onTimeChange={handleTimeChange}
           onItemSelect={handleItemSelect}
+          scrollRef={(el: HTMLElement) => { scrollElRef.current = el; }}
           sidebarWidth={120}
           lineHeight={36}
           itemHeightRatio={0.75}

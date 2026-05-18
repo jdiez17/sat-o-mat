@@ -17,6 +17,7 @@ interface PolarPlotDialogProps {
   satellite: string;
   pass: ApiPass;
   onClose: () => void;
+  onCreateTask?: (satellite: string, pass: ApiPass) => void;
 }
 
 function formatTime(iso: string): string {
@@ -30,10 +31,10 @@ function formatTime(iso: string): string {
   });
 }
 
-/** Convert az/el to cartesian x/y for a polar projection (0°el = edge, 90°el = center). */
+/** Convert az/el to cartesian x/y for a polar projection (0 el = edge, 90 el = center). */
 function toXY(az: number, el: number): { x: number; y: number } {
   const r = 90 - el; // invert: horizon=90, zenith=0
-  const rad = ((az - 90) * Math.PI) / 180; // rotate so 0°az = North (up)
+  const rad = ((az - 90) * Math.PI) / 180; // rotate so 0 az = North (up)
   return { x: r * Math.cos(rad), y: r * Math.sin(rad) };
 }
 
@@ -45,7 +46,7 @@ function downsample<T>(arr: T[], max: number): T[] {
   return out;
 }
 
-export function PolarPlotDialog({ satellite, pass, onClose }: PolarPlotDialogProps) {
+export function PolarPlotDialog({ satellite, pass, onClose, onCreateTask }: PolarPlotDialogProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<Chart | null>(null);
 
@@ -97,7 +98,7 @@ export function PolarPlotDialog({ satellite, pass, onClose }: PolarPlotDialogPro
             showLine: false,
           },
           {
-            label: `Max El (${maxEl.toFixed(1)}°)`,
+            label: `Max El (${maxEl.toFixed(1)}\u00B0)`,
             data: [maxPoint],
             pointRadius: 7,
             pointBackgroundColor: '#d29922',
@@ -167,7 +168,7 @@ export function PolarPlotDialog({ satellite, pass, onClose }: PolarPlotDialogPro
                 const el = 90 - r;
                 let az = (Math.atan2(py, px) * 180) / Math.PI + 90;
                 if (az < 0) az += 360;
-                return ` Az: ${az.toFixed(1)}°  El: ${el.toFixed(1)}°`;
+                return ` Az: ${az.toFixed(1)}\u00B0  El: ${el.toFixed(1)}\u00B0`;
               },
             },
           },
@@ -187,7 +188,7 @@ export function PolarPlotDialog({ satellite, pass, onClose }: PolarPlotDialogPro
 
             ctx.save();
 
-            // Elevation rings at 0°, 30°, 60° (90° is center point)
+            // Elevation rings at 0, 30, 60 (90 is center point)
             ctx.strokeStyle = '#30363d';
             ctx.lineWidth = 1;
             ctx.fillStyle = '#484f58';
@@ -199,10 +200,10 @@ export function PolarPlotDialog({ satellite, pass, onClose }: PolarPlotDialogPro
               ctx.beginPath();
               ctx.arc(cx, cy, r, 0, Math.PI * 2);
               ctx.stroke();
-              ctx.fillText(`${elev}°`, cx + 3, cy - r - 2);
+              ctx.fillText(`${elev}\u00B0`, cx + 3, cy - r - 2);
             }
             // Zenith label
-            ctx.fillText('90°', cx + 3, cy - 2);
+            ctx.fillText('90\u00B0', cx + 3, cy - 2);
 
             // Cardinal direction lines
             ctx.strokeStyle = '#30363d';
@@ -246,6 +247,16 @@ export function PolarPlotDialog({ satellite, pass, onClose }: PolarPlotDialogPro
             <canvas ref={canvasRef} />
           </div>
         </div>
+        {onCreateTask && (
+          <div className={styles.dialogFooter}>
+            <button
+              className={`${styles.dialogAction} ${styles.dialogActionPrimary}`}
+              onClick={() => onCreateTask(satellite, pass)}
+            >
+              Create Task
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
